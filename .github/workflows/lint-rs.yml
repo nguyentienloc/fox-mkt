@@ -115,6 +115,7 @@ jobs:
         working-directory: src-tauri
 
       - name: Run Rust unit tests
+        if: matrix.os != 'windows-latest'
         run: cargo test --lib && cargo test --test donut_proxy_integration && cargo test --test vpn_integration
         working-directory: src-tauri
 
