@@ -1493,7 +1493,13 @@ mod tests {
     {
       // Create a mock .app directory for macOS
       let app_dir = browser_dir.join("Firefox.app");
-      fs::create_dir_all(&app_dir).expect("Failed to create Firefox.app directory");
+      let macos_dir = app_dir.join("Contents").join("MacOS");
+      fs::create_dir_all(&macos_dir).expect("Failed to create Firefox.app MacOS directory");
+
+      // Create a mock executable inside MacOS directory
+      let executable_path = macos_dir.join("firefox");
+      fs::write(&executable_path, "mock executable")
+        .expect("Failed to write mock Firefox executable");
     }
 
     #[cfg(target_os = "linux")]

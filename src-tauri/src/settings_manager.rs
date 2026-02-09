@@ -63,7 +63,7 @@ pub struct SyncSettings {
 }
 
 fn default_theme() -> String {
-  "light".to_string()
+  "system".to_string()
 }
 
 fn default_api_port() -> u16 {
@@ -74,7 +74,7 @@ impl Default for AppSettings {
   fn default() -> Self {
     Self {
       set_as_default_browser: false,
-      theme: "light".to_string(),
+      theme: "system".to_string(),
       custom_theme: None,
       api_enabled: false,
       api_port: 10108,
