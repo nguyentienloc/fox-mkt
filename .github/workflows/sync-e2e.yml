@@ -4,14 +4,14 @@ on:
   pull_request:
     branches: ["main"]
     paths:
-      - "donut-sync/**"
+      - "foxia-sync/**"
       - "src-tauri/src/sync/**"
       - "scripts/sync-test-harness.mjs"
       - ".github/workflows/sync-e2e.yml"
   push:
     branches: ["main"]
     paths:
-      - "donut-sync/**"
+      - "foxia-sync/**"
       - "src-tauri/src/sync/**"
       - "scripts/sync-test-harness.mjs"
   workflow_call:
@@ -66,8 +66,8 @@ jobs:
       - name: Run Rust sync e2e tests with harness
         run: node scripts/sync-test-harness.mjs
 
-  donut-sync-e2e:
-    name: donut-sync Node.js E2E Tests
+  foxia-sync-e2e:
+    name: foxia-sync Node.js E2E Tests
     runs-on: ubuntu-22.04
 
     steps:
@@ -106,13 +106,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run donut-sync Node.js e2e tests
-        working-directory: donut-sync
+      - name: Run foxia-sync Node.js e2e tests
+        working-directory: foxia-sync
         env:
           SYNC_TOKEN: test-sync-token
           S3_ENDPOINT: http://localhost:8987
           S3_ACCESS_KEY_ID: minioadmin
           S3_SECRET_ACCESS_KEY: minioadmin
-          S3_BUCKET: donut-sync-test
+          S3_BUCKET: foxia-sync-test
           S3_FORCE_PATH_STYLE: "true"
         run: pnpm test:e2e

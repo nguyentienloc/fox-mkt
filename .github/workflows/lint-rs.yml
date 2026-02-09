@@ -88,8 +88,8 @@ jobs:
         shell: bash
         working-directory: ./src-tauri
         run: |
-          cargo build --bin donut-proxy --release
-          cargo build --bin donut-daemon --release
+          cargo build --bin foxia-proxy --release
+          cargo build --bin foxia-daemon --release
 
       - name: Copy sidecar binaries to Tauri binaries
         shell: bash
@@ -97,13 +97,13 @@ jobs:
           mkdir -p src-tauri/binaries
           HOST_TARGET="${{ steps.host_target.outputs.target }}"
           if [[ "$HOST_TARGET" == *"windows"* ]]; then
-            cp src-tauri/target/release/donut-proxy.exe src-tauri/binaries/donut-proxy-${HOST_TARGET}.exe
-            cp src-tauri/target/release/donut-daemon.exe src-tauri/binaries/donut-daemon-${HOST_TARGET}.exe
+            cp src-tauri/target/release/foxia-proxy.exe src-tauri/binaries/foxia-proxy-${HOST_TARGET}.exe
+            cp src-tauri/target/release/foxia-daemon.exe src-tauri/binaries/foxia-daemon-${HOST_TARGET}.exe
           else
-            cp src-tauri/target/release/donut-proxy src-tauri/binaries/donut-proxy-${HOST_TARGET}
-            cp src-tauri/target/release/donut-daemon src-tauri/binaries/donut-daemon-${HOST_TARGET}
-            chmod +x src-tauri/binaries/donut-proxy-${HOST_TARGET}
-            chmod +x src-tauri/binaries/donut-daemon-${HOST_TARGET}
+            cp src-tauri/target/release/foxia-proxy src-tauri/binaries/foxia-proxy-${HOST_TARGET}
+            cp src-tauri/target/release/foxia-daemon src-tauri/binaries/foxia-daemon-${HOST_TARGET}
+            chmod +x src-tauri/binaries/foxia-proxy-${HOST_TARGET}
+            chmod +x src-tauri/binaries/foxia-daemon-${HOST_TARGET}
           fi
 
       - name: Run rustfmt check
@@ -116,7 +116,7 @@ jobs:
 
       - name: Run Rust unit tests
         if: matrix.os != 'windows-latest'
-        run: cargo test --lib && cargo test --test donut_proxy_integration && cargo test --test vpn_integration
+        run: cargo test --lib && cargo test --test foxia_proxy_integration && cargo test --test vpn_integration
         working-directory: src-tauri
 
       - name: Run Rust sync e2e tests
