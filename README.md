@@ -1,27 +1,21 @@
 <div align="center">
-  <img src="assets/logo.png" alt="Donut Browser Logo" width="150">
-  <h1>Donut Browser</h1>
-  <strong>A powerful anti-detect browser that puts you in control of your browsing experience. 🍩</strong>
+  <img src="assets/logo.png" alt="Foxia Logo" width="150">
+  <h1>Foxia-MKT</h1>
+  <strong>A powerful anti-detect browser that puts you in control of your browsing experience. 🦊</strong>
 </div>
 <br>
 
 <p align="center">
-  <a style="text-decoration: none;" href="https://github.com/zhom/donutbrowser/releases/latest" target="_blank"><img alt="GitHub release" src="https://img.shields.io/github/v/release/zhom/donutbrowser">
+  <a style="text-decoration: none;" href="https://github.com/nguyentienloc/fox-mkt/releases/latest" target="_blank"><img alt="GitHub release" src="https://img.shields.io/github/v/release/nguyentienloc/fox-mkt">
   </a>
-  <a style="text-decoration: none;" href="https://github.com/zhom/donutbrowser/issues" target="_blank">
+  <a style="text-decoration: none;" href="https://github.com/nguyentienloc/fox-mkt/issues" target="_blank">
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat" alt="PRs Welcome">
   </a>
-  <a style="text-decoration: none;" href="https://github.com/zhom/donutbrowser/blob/main/LICENSE" target="_blank">
+  <a style="text-decoration: none;" href="https://github.com/nguyentienloc/fox-mkt/blob/main/LICENSE" target="_blank">
     <img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License">
   </a>
-  <a href="https://app.codacy.com/gh/zhom/donutbrowser/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade">
-    <img src="https://app.codacy.com/project/badge/Grade/b9c9beafc92d4bc8bc7c5b42c6c4ba81"/>
-  </a>
-  <a href="https://app.fossa.com/projects/git%2Bgithub.com%2Fzhom%2Fdonutbrowser?ref=badge_shield&issueType=security" alt="FOSSA Status">
-    <img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Fzhom%2Fdonutbrowser.svg?type=shield&issueType=security"/>
-  </a>
-  <a style="text-decoration: none;" href="https://github.com/zhom/donutbrowser/stargazers" target="_blank">
-    <img src="https://img.shields.io/github/stars/zhom/donutbrowser?style=social" alt="GitHub stars">
+  <a style="text-decoration: none;" href="https://github.com/nguyentienloc/fox-mkt/stargazers" target="_blank">
+    <img src="https://img.shields.io/github/stars/nguyentienloc/fox-mkt?style=social" alt="GitHub stars">
   </a>
 </p>
 
@@ -38,20 +32,14 @@
 - Proxy support with basic auth for all browsers
 - Import profiles from your existing browsers
 - Automatic updates for browsers
-- Set Donut Browser as your default browser to control in which profile to open links
+- Set Foxia as your default browser to control in which profile to open links
 
 ## Download
 
 > As of right now, the app is not signed by Apple. You need to have Gatekeeper disabled to run it. The app automatically checks for updates on each launch.
 > For Linux, .deb and .rpm packages are available as well as standalone .AppImage files.
 
-The app can be downloaded from the [releases page](https://github.com/zhom/donutbrowser/releases/latest).
-
-<!-- ## Supported Platforms
-
-- ✅ **macOS** (Apple Silicon)
-- ✅ **Linux** (x64)
-- ✅ **Windows** (x64) -->
+The app can be downloaded from the [releases page](https://github.com/nguyentienloc/fox-mkt/releases/latest).
 
 ## Development
 
@@ -61,28 +49,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Issues
 
-If you face any problems while using the application, please [open an issue](https://github.com/zhom/donutbrowser/issues).
+If you face any problems while using the application, please [open an issue](https://github.com/nguyentienloc/fox-mkt/issues).
 
 ## Self-Hosting Sync
 
-Donut Browser supports syncing profiles, proxies, and groups across devices via a self-hosted sync server. See the [Self-Hosting Guide](docs/self-hosting-donut-sync.md) for Docker-based setup instructions.
+Foxia supports syncing profiles, proxies, and groups across devices via a self-hosted sync server. See the [Self-Hosting Guide](docs/self-hosting-foxia-sync.md) for Docker-based setup instructions.
 
 ## Community
 
 Have questions or want to contribute? We'd love to hear from you!
 
-- **Issues**: [GitHub Issues](https://github.com/zhom/donutbrowser/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/zhom/donutbrowser/discussions)
-
-## Star History
-
-<a href="https://www.star-history.com/#zhom/donutbrowser&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=zhom/donutbrowser&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=zhom/donutbrowser&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=zhom/donutbrowser&type=Date" />
- </picture>
-</a>
+- **Issues**: [GitHub Issues](https://github.com/nguyentienloc/fox-mkt/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/nguyentienloc/fox-mkt/discussions)
 
 ## Contributors
 
@@ -97,27 +75,6 @@ Have questions or want to contribute? We'd love to hear from you!
                     <sub><b>locnguyen3103</b></sub>
                 </a>
             </td>
-            <td align="center">
-                <a href="https://github.com/zhom">
-                    <img src="https://avatars.githubusercontent.com/u/2717306?v=4" width="100;" alt="zhom"/>
-                    <br />
-                    <sub><b>zhom</b></sub>
-                </a>
-            </td>
-            <td align="center">
-                <a href="https://github.com/HassiyYT">
-                    <img src="https://avatars.githubusercontent.com/u/81773493?v=4" width="100;" alt="HassiyYT"/>
-                    <br />
-                    <sub><b>Hassiy</b></sub>
-                </a>
-            </td>
-            <td align="center">
-                <a href="https://github.com/JorySeverijnse">
-                    <img src="https://avatars.githubusercontent.com/u/117462355?v=4" width="100;" alt="JorySeverijnse"/>
-                    <br />
-                    <sub><b>Jory Severijnse</b></sub>
-                </a>
-            </td>
 		</tr>
 	<tbody>
 </table>
@@ -125,7 +82,7 @@ Have questions or want to contribute? We'd love to hear from you!
 
 ## Contact
 
-Have an urgent question or want to report a security vulnerability? Send an email to contact at donutbrowser dot com and we'll get back to you as fast as possible.
+Have an urgent question or want to report a security vulnerability? Create an issue on GitHub.
 
 ## License
 

@@ -73,9 +73,9 @@ copy_binary() {
   fi
 }
 
-# Copy donut-proxy binary
-copy_binary "donut-proxy"
+# Copy foxia-proxy binary
+copy_binary "foxia-proxy"
 
-# Copy donut-daemon binary
-copy_binary "donut-daemon"
+# Copy foxia-daemon binary
+copy_binary "foxia-daemon"
 

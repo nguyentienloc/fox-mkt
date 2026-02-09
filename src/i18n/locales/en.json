@@ -90,12 +90,12 @@
       "title": "Default Browser",
       "setAsDefault": "Set as Default Browser",
       "alreadyDefault": "Already Default Browser",
-      "description": "When set as default, Donut Browser will handle web links and allow you to choose which profile to use."
+      "description": "When set as default, Foxia will handle web links and allow you to choose which profile to use."
     },
     "permissions": {
       "title": "System Permissions",
       "loading": "Loading permissions...",
-      "description": "These permissions allow browsers launched from Donut Browser to access system resources. Each website will still ask for your permission individually.",
+      "description": "These permissions allow browsers launched from Foxia to access system resources. Each website will still ask for your permission individually.",
       "microphone": "Microphone",
       "microphoneDescription": "Access to microphone for browser applications",
       "camera": "Camera",
@@ -130,7 +130,8 @@
       "groups": "Groups",
       "syncService": "Sync Service",
       "integrations": "Integrations",
-      "importProfile": "Import Profile"
+      "importProfile": "Import Profile",
+      "checkUpdate": "Check for updates"
     }
   },
   "profiles": {
@@ -457,5 +458,9 @@
     "zen": "Zen Browser",
     "camoufox": "Camoufox",
     "wayfern": "Wayfern"
+  },
+  "auth": {
+    "checking_status": "Checking authentication status...",
+    "launching": "Launching..."
   }
 }

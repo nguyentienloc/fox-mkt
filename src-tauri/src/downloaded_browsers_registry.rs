@@ -74,9 +74,9 @@ impl DownloadedBrowsersRegistry {
     let base_dirs = BaseDirs::new().ok_or("Failed to get base directories")?;
     let mut path = base_dirs.data_local_dir().to_path_buf();
     path.push(if cfg!(debug_assertions) {
-      "DonutBrowserDev"
+      "FoxiaDev"
     } else {
-      "DonutBrowser"
+      "Foxia"
     });
     path.push("data");
     path.push("downloaded_browsers.json");
@@ -132,9 +132,9 @@ impl DownloadedBrowsersRegistry {
     let binaries_dir = if let Some(base_dirs) = directories::BaseDirs::new() {
       let mut path = base_dirs.data_local_dir().to_path_buf();
       path.push(if cfg!(debug_assertions) {
-        "DonutBrowserDev"
+        "FoxiaDev"
       } else {
-        "DonutBrowser"
+        "Foxia"
       });
       path.push("binaries");
       path
@@ -515,9 +515,9 @@ impl DownloadedBrowsersRegistry {
     let base_dirs = directories::BaseDirs::new().ok_or("Failed to get base directories")?;
     let mut binaries_dir = base_dirs.data_local_dir().to_path_buf();
     binaries_dir.push(if cfg!(debug_assertions) {
-      "DonutBrowserDev"
+      "FoxiaDev"
     } else {
-      "DonutBrowser"
+      "Foxia"
     });
     binaries_dir.push("binaries");
 
@@ -810,9 +810,9 @@ impl DownloadedBrowsersRegistry {
       let binaries_dir = if let Some(base_dirs) = directories::BaseDirs::new() {
         let mut path = base_dirs.data_local_dir().to_path_buf();
         path.push(if cfg!(debug_assertions) {
-          "DonutBrowserDev"
+          "FoxiaDev"
         } else {
-          "DonutBrowser"
+          "Foxia"
         });
         path.push("binaries");
         path

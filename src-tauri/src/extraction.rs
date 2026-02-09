@@ -347,7 +347,7 @@ impl Extractor {
 
     // Create a temporary mount point
     let mount_point = std::env::temp_dir().join(format!(
-      "donut_mount_{}",
+      "foxia_mount_{}",
       std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()

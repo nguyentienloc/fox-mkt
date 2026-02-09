@@ -94,9 +94,9 @@ impl CamoufoxManager {
   pub fn get_profiles_dir(&self) -> PathBuf {
     let mut path = self.base_dirs.data_local_dir().to_path_buf();
     path.push(if cfg!(debug_assertions) {
-      "DonutBrowserDev"
+      "FoxiaDev"
     } else {
-      "DonutBrowser"
+      "Foxia"
     });
     path.push("profiles");
     path
@@ -264,7 +264,7 @@ impl CamoufoxManager {
     // Build command arguments
     // Note: We intentionally do NOT use -no-remote to allow opening URLs in existing instances
     // via Firefox's remote messaging mechanism. This enables "open in new tab" functionality
-    // when Donut is set as the default browser.
+    // when Foxia is set as the default browser.
     let mut args = vec![
       "-profile".to_string(),
       std::path::Path::new(profile_path)
@@ -286,10 +286,20 @@ impl CamoufoxManager {
     }
 
     log::info!(
-      "Launching Camoufox: {:?} with args: {:?}",
-      executable_path,
-      args
+      "Launching Camoufox for profile: {} with executable: {:?}",
+      profile.name,
+      executable_path
     );
+
+    // Final check before spawning
+    if !executable_path.exists() {
+      let err_msg = format!(
+        "Cannot launch Camoufox: Executable file not found at {:?}",
+        executable_path
+      );
+      log::error!("{}", err_msg);
+      return Err(err_msg.into());
+    }
 
     // Spawn the browser process
     let mut command = TokioCommand::new(&executable_path);
@@ -314,9 +324,12 @@ impl CamoufoxManager {
       }
     }
 
-    let child = command
-      .spawn()
-      .map_err(|e| format!("Failed to spawn Camoufox process: {e}"))?;
+    log::info!("Spawning Camoufox process...");
+    let child = command.spawn().map_err(|e| {
+      let err_msg = format!("Failed to spawn Camoufox process at {:?}: {e}", executable_path);
+      log::error!("{}", err_msg);
+      err_msg
+    })?;
 
     let process_id = child.id();
     let instance_id = format!("camoufox_{}", process_id.unwrap_or(0));

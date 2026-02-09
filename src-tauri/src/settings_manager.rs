@@ -63,7 +63,7 @@ pub struct SyncSettings {
 }
 
 fn default_theme() -> String {
-  "system".to_string()
+  "light".to_string()
 }
 
 fn default_api_port() -> u16 {
@@ -74,7 +74,7 @@ impl Default for AppSettings {
   fn default() -> Self {
     Self {
       set_as_default_browser: false,
-      theme: "system".to_string(),
+      theme: "light".to_string(),
       custom_theme: None,
       api_enabled: false,
       api_port: 10108,
@@ -100,7 +100,7 @@ impl SettingsManager {
   fn new() -> Self {
     Self {
       base_dirs: BaseDirs::new().expect("Failed to get base directories"),
-      data_dir_override: std::env::var("DONUTBROWSER_DATA_DIR")
+      data_dir_override: std::env::var("FOXIA_DATA_DIR")
         .ok()
         .map(PathBuf::from),
     }
@@ -125,9 +125,9 @@ impl SettingsManager {
 
     let mut path = self.base_dirs.data_local_dir().to_path_buf();
     path.push(if cfg!(debug_assertions) {
-      "DonutBrowserDev"
+      "FoxiaDev"
     } else {
-      "DonutBrowser"
+      "Foxia"
     });
     path.push("settings");
     path
@@ -226,7 +226,7 @@ impl SettingsManager {
   }
 
   fn get_vault_password() -> String {
-    env!("DONUT_BROWSER_VAULT_PASSWORD").to_string()
+    env!("FOXIA_MKT_VAULT_PASSWORD").to_string()
   }
 
   pub async fn generate_api_token(

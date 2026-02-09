@@ -93,7 +93,7 @@ impl VpnStorage {
 
   /// Get the storage file path
   fn get_storage_path() -> PathBuf {
-    let data_dir = directories::ProjectDirs::from("com", "donut", "donutbrowser")
+    let data_dir = directories::ProjectDirs::from("com", "foxia", "foxia-mkt")
       .map(|dirs| dirs.data_local_dir().to_path_buf())
       .unwrap_or_else(|| PathBuf::from("."));
 
@@ -106,7 +106,7 @@ impl VpnStorage {
 
   /// Get or create the encryption key
   fn get_or_create_key() -> [u8; 32] {
-    let key_path = directories::ProjectDirs::from("com", "donut", "donutbrowser")
+    let key_path = directories::ProjectDirs::from("com", "foxia", "foxia-mkt")
       .map(|dirs| dirs.data_local_dir().join(".vpn_key"))
       .unwrap_or_else(|| PathBuf::from(".vpn_key"));
 

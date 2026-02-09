@@ -137,7 +137,7 @@ export function GroupBadges({
     return (
       <div className="flex gap-2 mb-4">
         <div className="flex items-center gap-2 px-4.5 py-1.5 text-xs">
-          Loading groups...
+          Đang tải nhóm...
         </div>
       </div>
     );
@@ -171,7 +171,7 @@ export function GroupBadges({
                 return;
               }
               onGroupSelect(
-                selectedGroupId === group.id ? "default" : group.id,
+                selectedGroupId === group.id ? "Nhóm mặc định" : group.id,
               );
             }}
             onMouseDown={(e) => {

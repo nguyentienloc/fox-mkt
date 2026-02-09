@@ -90,12 +90,12 @@
       "title": "Navegador Padrão",
       "setAsDefault": "Definir como Navegador Padrão",
       "alreadyDefault": "Já é o Navegador Padrão",
-      "description": "Quando definido como padrão, o Donut Browser lidará com links da web e permitirá que você escolha qual perfil usar."
+      "description": "Quando definido como padrão, o Foxia lidará com links da web e permitirá que você escolha qual perfil usar."
     },
     "permissions": {
       "title": "Permissões do Sistema",
       "loading": "Carregando permissões...",
-      "description": "Essas permissões permitem que navegadores iniciados pelo Donut Browser acessem recursos do sistema. Cada site ainda pedirá sua permissão individualmente.",
+      "description": "Essas permissões permitem que navegadores iniciados pelo Foxia acessem recursos do sistema. Cada site ainda pedirá sua permissão individualmente.",
       "microphone": "Microfone",
       "microphoneDescription": "Acesso ao microfone para aplicativos do navegador",
       "camera": "Câmera",

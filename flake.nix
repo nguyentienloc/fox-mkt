@@ -1,5 +1,5 @@
 {
-  description = "Donut Browser Development Environment";
+  description = "Foxia-MKT Development Environment";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -55,7 +55,7 @@
             export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath libraries}:$LD_LIBRARY_PATH
             export XDG_DATA_DIRS=${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:$XDG_DATA_DIRS
             
-            echo "🍩 Donut Browser Dev Environment Loaded!"
+            echo "🦊 Foxia-MKT Dev Environment Loaded!"
             echo "Node: $(node --version)"
             echo "Rust: $(rustc --version)"
             echo "Tauri CLI: $(cargo-tauri --version)"

@@ -35,9 +35,12 @@ pub struct ZsMktProfile {
   pub created_at_str: Option<String>,
   #[serde(rename = "profileUrl")]
   pub profile_url: Option<String>,
+  pub username: Option<String>,
+  pub password: Option<String>,
+  pub browser: Option<String>,
 }
 
-/// Convert a zs-mkt proxy to a DonutBrowser proxy settings.
+/// Convert a zs-mkt proxy to a Foxia proxy settings.
 #[allow(dead_code)]
 pub fn convert_zsmkt_proxy(zs_proxy: &ZsMktProxy) -> crate::browser::ProxySettings {
   let port = match &zs_proxy.port {
@@ -55,7 +58,7 @@ pub fn convert_zsmkt_proxy(zs_proxy: &ZsMktProxy) -> crate::browser::ProxySettin
   }
 }
 
-/// Convert a zs-mkt profile to a DonutBrowser profile.
+/// Convert a zs-mkt profile to a Foxia profile.
 pub fn convert_zsmkt_profile(zs_profile: ZsMktProfile, proxy_id: Option<String>) -> BrowserProfile {
   // Try to parse as UUID first, otherwise create deterministic UUID from odoo_id
   let id = Uuid::parse_str(&zs_profile.id).unwrap_or_else(|_| {
@@ -147,7 +150,7 @@ pub fn convert_zsmkt_profile(zs_profile: ZsMktProfile, proxy_id: Option<String>)
   BrowserProfile {
     id,
     name: zs_profile.name,
-    browser: "camoufox".to_string(),
+    browser: zs_profile.browser.unwrap_or_else(|| "camoufox".to_string()),
     version,
     proxy_id,
     process_id: None,
@@ -167,6 +170,9 @@ pub fn convert_zsmkt_profile(zs_profile: ZsMktProfile, proxy_id: Option<String>)
     profile_url: zs_profile.profile_url,
     created_at: created_at.or(Some(chrono::Utc::now().timestamp() as u64)),
     odoo_proxy: None,
+    username: zs_profile.username,
+    password: zs_profile.password,
+    user_agent: None,
     absolute_path: None,
   }
 }

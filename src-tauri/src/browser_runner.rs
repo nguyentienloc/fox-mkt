@@ -39,9 +39,9 @@ impl BrowserRunner {
   pub fn get_binaries_dir(&self) -> PathBuf {
     let mut path = self.base_dirs.data_local_dir().to_path_buf();
     path.push(if cfg!(debug_assertions) {
-      "DonutBrowserDev"
+      "FoxiaDev"
     } else {
-      "DonutBrowser"
+      "Foxia"
     });
     path.push("binaries");
     path
@@ -79,20 +79,45 @@ impl BrowserRunner {
     // Get platform-specific executable path
     let internal_path_res = browser.get_executable_path(&browser_dir);
 
+    log::info!(
+      "Internal path resolution for {}: {:?}",
+      profile.browser,
+      internal_path_res
+    );
+
     match internal_path_res {
-      Ok(path) if path.exists() => Ok(path),
-      _ => {
-        // Final fallback (already tried above, but keeping for structure)
+      Ok(path) if path.exists() => {
+        log::info!("Found executable at: {:?}", path);
+        Ok(path)
+      }
+      res => {
+        // Final fallback for Camoufox
         if profile.browser == "camoufox" {
-          if let Some(external_path) =
-            crate::camoufox::external_binary::get_external_camoufox_path()
+          if let Some(external_path) = crate::camoufox::external_binary::get_external_camoufox_path()
           {
-            return Ok(external_path);
+            if external_path.exists() {
+              log::info!("Using fallback external Camoufox binary: {:?}", external_path);
+              return Ok(external_path);
+            }
           }
         }
 
-        internal_path_res
-          .map_err(|e| format!("Failed to get executable path for {}: {e}", profile.browser).into())
+        // It didn't exist or was an error - return error now
+        match res {
+          Ok(path) => {
+            let err_msg = format!(
+              "Browser executable found at {:?} but it does not exist on disk. Please try downloading it again.",
+              path
+            );
+            log::error!("{}", err_msg);
+            Err(err_msg.into())
+          }
+          Err(e) => {
+            let err_msg = format!("Failed to get executable path for {}: {e}", profile.browser);
+            log::error!("{}", err_msg);
+            Err(err_msg.into())
+          }
+        }
       }
     }
   }

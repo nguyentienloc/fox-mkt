@@ -28,7 +28,6 @@ interface WayfernConfigFormProps {
   onConfigChange: (key: keyof WayfernConfig, value: unknown) => void;
   className?: string;
   isCreating?: boolean;
-  forceAdvanced?: boolean;
   readOnly?: boolean;
 }
 
@@ -57,7 +56,6 @@ export function WayfernConfigForm({
   onConfigChange,
   className = "",
   isCreating = false,
-  forceAdvanced = false,
   readOnly = false,
 }: WayfernConfigFormProps) {
   const { t } = useTranslation();

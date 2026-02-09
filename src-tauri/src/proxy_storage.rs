@@ -38,9 +38,9 @@ pub fn get_storage_dir() -> PathBuf {
   let base_dirs = BaseDirs::new().expect("Failed to get base directories");
   let mut path = base_dirs.data_local_dir().to_path_buf();
   path.push(if cfg!(debug_assertions) {
-    "DonutBrowserDev"
+    "FoxiaDev"
   } else {
-    "DonutBrowser"
+    "Foxia"
   });
   path.push("proxies");
   path

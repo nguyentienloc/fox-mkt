@@ -1,4 +1,7 @@
-export const Logo = (props: React.SVGProps<SVGSVGElement>) => (
+export const Logo = (_props: React.SVGProps<SVGSVGElement>) => (
+  <img src="/mktv3.png" alt="" style={{ width: 80 }} />
+);
+export const LogoOld = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={1200}

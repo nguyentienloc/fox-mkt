@@ -90,12 +90,12 @@
       "title": "デフォルトブラウザ",
       "setAsDefault": "デフォルトブラウザに設定",
       "alreadyDefault": "既にデフォルトブラウザです",
-      "description": "デフォルトに設定すると、Donut Browser がウェブリンクを処理し、使用するプロファイルを選択できます。"
+      "description": "デフォルトに設定すると、Foxia がウェブリンクを処理し、使用するプロファイルを選択できます。"
     },
     "permissions": {
       "title": "システム権限",
       "loading": "権限を読み込み中...",
-      "description": "これらの権限により、Donut Browser から起動したブラウザがシステムリソースにアクセスできます。各ウェブサイトは個別に許可を求めます。",
+      "description": "これらの権限により、Foxia から起動したブラウザがシステムリソースにアクセスできます。各ウェブサイトは個別に許可を求めます。",
       "microphone": "マイク",
       "microphoneDescription": "ブラウザアプリケーションのマイクアクセス",
       "camera": "カメラ",

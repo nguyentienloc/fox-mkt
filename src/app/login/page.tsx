@@ -19,7 +19,7 @@ import { useAuth } from "@/providers/auth-provider";
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [baseUrl, setBaseUrl] = useState("https://backend-analytics.soly.vn");
+  const [baseUrl, setBaseUrl] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
@@ -97,7 +97,7 @@ export default function LoginPage() {
               Chào mừng trở lại
             </CardTitle>
             <CardDescription>
-              Đăng nhập tài khoản Odoo để đồng bộ profile
+              Đăng nhập tài khoản Odoo để tiếp tục
             </CardDescription>
           </div>
         </CardHeader>

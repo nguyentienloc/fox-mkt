@@ -79,6 +79,9 @@ interface ProfilesDataTableProps {
   onDownloadFromOdoo?: (profile: BrowserProfile) => Promise<void>;
   onImportCloudProfile?: (profile: any) => Promise<void>;
   uploadingProfiles?: Set<string>;
+  appVersion?: string;
+  onViewProfileDetails?: (profile: BrowserProfile) => void;
+  isManager?: boolean;
 }
 
 interface TableMeta {
@@ -136,6 +139,8 @@ interface TableMeta {
   onDownloadFromOdoo?: (profile: BrowserProfile) => Promise<void>;
   onImportCloudProfile?: (profile: any) => Promise<void>;
   uploadingProfiles: Set<string>;
+  onViewProfileDetails?: (profile: BrowserProfile) => void;
+  isManager: boolean;
 }
 
 export function ProfilesDataTableVirtual({
@@ -156,6 +161,9 @@ export function ProfilesDataTableVirtual({
   onDownloadFromOdoo,
   onImportCloudProfile,
   uploadingProfiles = new Set(),
+  appVersion,
+  onViewProfileDetails,
+  isManager = false,
 }: ProfilesDataTableProps) {
   const { updateSorting } = useTableSorting();
 
@@ -510,6 +518,8 @@ export function ProfilesDataTableVirtual({
       onDownloadFromOdoo,
       onImportCloudProfile,
       uploadingProfiles,
+      onViewProfileDetails,
+      isManager,
     }),
     [
       selectedProfiles,
@@ -544,6 +554,8 @@ export function ProfilesDataTableVirtual({
       handleCheckboxChange,
       handleIconClick,
       uploadingProfiles,
+      onViewProfileDetails,
+      isManager,
     ],
   );
 
@@ -740,16 +752,7 @@ export function ProfilesDataTableVirtual({
             );
           }
           return (
-            <button
-              type="button"
-              className="hover:underline text-left"
-              onClick={() => {
-                meta.setProfileToRename(profile);
-                meta.setNewProfileName(profile.name);
-              }}
-            >
-              {trimName(profile.name, 20)}
-            </button>
+            <span className="text-left">{trimName(profile.name, 20)}</span>
           );
         },
       },
@@ -942,7 +945,12 @@ export function ProfilesDataTableVirtual({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {!isCloudOnly && (
+                <DropdownMenuItem
+                  onClick={() => meta.onViewProfileDetails?.(profile)}
+                >
+                  Xem chi tiết
+                </DropdownMenuItem>
+                {!isCloudOnly && meta.isManager && (
                   <DropdownMenuItem
                     onClick={() => meta.onCloneProfile?.(profile)}
                     disabled={
@@ -991,12 +999,14 @@ export function ProfilesDataTableVirtual({
                     Nhập Profile về máy
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => meta.setProfileToDelete(profile)}
-                >
-                  Xóa
-                </DropdownMenuItem>
+                {meta.isManager && (
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => meta.setProfileToDelete(profile)}
+                  >
+                    Xóa
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           );
@@ -1143,6 +1153,9 @@ export function ProfilesDataTableVirtual({
           <span className="font-bold mr-1">{syncedCount}</span>
           Profile đã đồng bộ
         </Button>
+        <div className="ml-auto text-[10px] text-orange-500/70 font-mono">
+          App version: {appVersion || "..."}
+        </div>
       </div>
       <DeleteConfirmationDialog
         isOpen={profileToDelete !== null}

@@ -16,7 +16,7 @@ interface CustomThemeProviderProps {
 
 export function CustomThemeProvider({ children }: CustomThemeProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [defaultTheme, setDefaultTheme] = useState<string>("system");
+  const [defaultTheme, setDefaultTheme] = useState<string>("light");
   const [_mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export function CustomThemeProvider({ children }: CustomThemeProviderProps) {
         // Lazy import to avoid pulling Tauri API on SSR
         const { invoke } = await import("@tauri-apps/api/core");
         const settings = await invoke<AppSettings>("get_app_settings");
-        const themeValue = settings?.theme ?? "system";
+        const themeValue = settings?.theme ?? "light";
 
         console.log("[theme-provider] Loaded settings:", {
           theme: themeValue,
@@ -58,15 +58,15 @@ export function CustomThemeProvider({ children }: CustomThemeProviderProps) {
             }
           }
         } else {
-          setDefaultTheme("system");
+          setDefaultTheme("light");
         }
       } catch (error) {
         // Failed to load settings; fall back to system (handled by next-themes)
         console.warn(
-          "Failed to load theme settings; defaulting to system:",
+          "Failed to load theme settings; defaulting to light:",
           error,
         );
-        setDefaultTheme("system");
+        setDefaultTheme("light");
       } finally {
         setIsLoading(false);
       }

@@ -37,7 +37,7 @@
     "node_modules",
     "nodecar",
     "src-tauri/target",
-    "donut-sync",
+    "foxia-sync",
     "camoufox-js"
   ]
 }

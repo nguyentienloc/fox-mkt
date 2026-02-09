@@ -1,6 +1,6 @@
 packages:
   - nodecar
-  - donut-sync
+  - foxia-sync
 
 onlyBuiltDependencies:
   - '@biomejs/biome'

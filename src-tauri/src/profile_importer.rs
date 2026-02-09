@@ -560,6 +560,9 @@ impl ProfileImporter {
       created_at: Some(chrono::Utc::now().timestamp() as u64),
       odoo_proxy: None,
       absolute_path: None,
+      username: None,
+      password: None,
+      user_agent: None,
     };
 
     // Save the profile metadata

@@ -47,7 +47,7 @@ describe("SyncController (e2e)", () => {
     process.env.S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID || "minioadmin";
     process.env.S3_SECRET_ACCESS_KEY =
       process.env.S3_SECRET_ACCESS_KEY || "minioadmin";
-    process.env.S3_BUCKET = "donut-sync-test";
+    process.env.S3_BUCKET = "foxia-sync-test";
     process.env.S3_FORCE_PATH_STYLE = "true";
 
     const moduleFixture: TestingModule = await Test.createTestingModule({

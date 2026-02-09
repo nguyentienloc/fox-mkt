@@ -1,10 +1,10 @@
 [package]
-name = "donutbrowser"
+name = "foxia-mkt"
 version = "0.0.1"
 description = "Simple Yet Powerful Anti-Detect Browser"
 authors = ["zhom@github"]
 edition = "2021"
-default-run = "donutbrowser"
+default-run = "foxia-mkt"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -12,21 +12,21 @@ default-run = "donutbrowser"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "donutbrowser_lib"
+name = "foxia_mkt_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 doctest = false
 
 [[bin]]
-name = "donutbrowser"
+name = "foxia-mkt"
 path = "src/main.rs"
 
 [[bin]]
-name = "donut-proxy"
+name = "foxia-proxy"
 path = "src/bin/proxy_server.rs"
 
 [[bin]]
-name = "donut-daemon"
-path = "src/bin/donut_daemon.rs"
+name = "foxia-daemon"
+path = "src/bin/foxia_daemon.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -150,8 +150,8 @@ serial_test = "3"
 
 # Integration test configuration
 [[test]]
-name = "donut_proxy_integration"
-path = "tests/donut_proxy_integration.rs"
+name = "foxia_proxy_integration"
+path = "tests/foxia_proxy_integration.rs"
 
 [[test]]
 name = "sync_e2e"

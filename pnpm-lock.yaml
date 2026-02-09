@@ -175,7 +175,7 @@ importers:
         specifier: ~5.9.3
         version: 5.9.3
 
-  donut-sync:
+  foxia-sync:
     dependencies:
       '@aws-sdk/client-s3':
         specifier: ^3.980.0

@@ -466,9 +466,9 @@ impl ApiClient {
   fn get_cache_dir() -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync>> {
     let base_dirs = BaseDirs::new().ok_or("Failed to get base directories")?;
     let app_name = if cfg!(debug_assertions) {
-      "DonutBrowserDev"
+      "FoxiaDev"
     } else {
-      "DonutBrowser"
+      "Foxia"
     };
     let cache_dir = base_dirs.cache_dir().join(app_name).join("version_cache");
     fs::create_dir_all(&cache_dir)?;

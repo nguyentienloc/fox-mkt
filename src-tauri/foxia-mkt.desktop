@@ -1,16 +1,16 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Donut
-Name[en]=Donut
+Name=Foxia
+Name[en]=Foxia
 GenericName=Web Browser
-X-GNOME-FullName=Donut
+X-GNOME-FullName=Foxia
 Comment=Simple Yet Powerful Anti-Detect Browser
-Exec=donutbrowser %u
-Icon=donutbrowser
+Exec=foxia-mkt %u
+Icon=foxia-mkt
 StartupNotify=true
 NoDisplay=false
 Categories=Network;WebBrowser;
 MimeType=x-scheme-handler/http;x-scheme-handler/https;text/html;application/xhtml+xml;
-StartupWMClass=donutbrowser
+StartupWMClass=foxia-mkt
 Keywords=browser;web;internet;productivity;

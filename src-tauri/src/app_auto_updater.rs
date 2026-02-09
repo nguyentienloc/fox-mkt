@@ -1,7 +1,7 @@
 /*!
 # App Auto Updater
 
-This module provides comprehensive self-update functionality for the Donut Browser application
+This module provides comprehensive self-update functionality for the Foxia-MKT application
 across multiple operating systems and installation methods.
 
 ## Supported Platforms
@@ -205,7 +205,7 @@ impl AppAutoUpdater {
 
       // Build the release page URL
       let release_page_url = format!(
-        "https://github.com/nguyentienloc/donutbrowser/releases/tag/{}",
+        "https://github.com/nguyentienloc/fox-mkt/releases/tag/{}",
         latest_release.tag_name
       );
 
@@ -272,7 +272,7 @@ impl AppAutoUpdater {
   async fn fetch_app_releases(
     &self,
   ) -> Result<Vec<AppRelease>, Box<dyn std::error::Error + Send + Sync>> {
-    let url = "https://api.github.com/repos/nguyentienloc/donutbrowser/releases?per_page=100";
+    let url = "https://api.github.com/repos/nguyentienloc/fox-mkt/releases?per_page=100";
     let response = self
       .client
       .get(url)
@@ -722,7 +722,7 @@ impl AppAutoUpdater {
   ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     log::info!("Starting background update download and install");
 
-    let temp_dir = std::env::temp_dir().join("donut_app_update");
+    let temp_dir = std::env::temp_dir().join("foxia_app_update");
     fs::create_dir_all(&temp_dir)?;
 
     let filename = update_info
@@ -886,18 +886,18 @@ impl AppAutoUpdater {
       // Clean up backup after successful installation
       let _ = fs::remove_dir_all(&backup_path);
 
-      // Clean up old "Donut Browser.app" if it exists (from before the project rename)
+      // Clean up old "Foxia.app" if it exists (after version upgrade with different bundle name)
       if let Some(parent_dir) = current_app_path.parent() {
-        let old_app_path = parent_dir.join("Donut Browser.app");
+        let old_app_path = parent_dir.join("Foxia.app");
         if old_app_path.exists() && old_app_path != current_app_path {
           log::info!(
-            "Removing old 'Donut Browser.app' from: {}",
+            "Removing old 'Foxia.app' from: {}",
             old_app_path.display()
           );
           if let Err(e) = fs::remove_dir_all(&old_app_path) {
-            log::warn!("Warning: Failed to remove old 'Donut Browser.app': {e}");
+            log::warn!("Warning: Failed to remove old 'Foxia.app': {e}");
           } else {
-            log::info!("Successfully removed old 'Donut Browser.app'");
+            log::info!("Successfully removed old 'Foxia.app'");
           }
         }
       }
@@ -1365,7 +1365,7 @@ impl AppAutoUpdater {
 
       // Create a temporary restart script
       let temp_dir = std::env::temp_dir();
-      let script_path = temp_dir.join("donut_restart.sh");
+      let script_path = temp_dir.join("foxia_restart.sh");
 
       // Create the restart script content
       let script_content = format!(
@@ -1421,7 +1421,7 @@ rm "{}"
 
       // Create a temporary restart batch script
       let temp_dir = std::env::temp_dir();
-      let script_path = temp_dir.join("donut_restart.bat");
+      let script_path = temp_dir.join("foxia_restart.bat");
 
       // Create the restart script content
       let script_content = format!(
@@ -1471,7 +1471,7 @@ del "%~f0"
 
       // Create a temporary restart script
       let temp_dir = std::env::temp_dir();
-      let script_path = temp_dir.join("donut_restart.sh");
+      let script_path = temp_dir.join("foxia_restart.sh");
 
       // Create the restart script content
       let script_content = format!(
@@ -1525,6 +1525,11 @@ rm "{}"
       Err("Application restart not supported on this platform".into())
     }
   }
+}
+
+#[tauri::command]
+pub fn get_app_version() -> String {
+  AppAutoUpdater::get_current_version()
 }
 
 // Tauri commands
@@ -1689,39 +1694,39 @@ mod tests {
     let all_assets = vec![
       // macOS assets
       AppReleaseAsset {
-        name: "Donut.Browser_0.1.0_aarch64.dmg".to_string(),
+        name: "Foxia_0.1.0_aarch64.dmg".to_string(),
         browser_download_url: "https://example.com/aarch64.dmg".to_string(),
         size: 12345,
       },
       AppReleaseAsset {
-        name: "Donut.Browser_0.1.0_x64.dmg".to_string(),
+        name: "Foxia_0.1.0_x64.dmg".to_string(),
         browser_download_url: "https://example.com/x64.dmg".to_string(),
         size: 12345,
       },
       // Windows assets
       AppReleaseAsset {
-        name: "Donut.Browser_0.1.0_x64.msi".to_string(),
+        name: "Foxia_0.1.0_x64.msi".to_string(),
         browser_download_url: "https://example.com/x64.msi".to_string(),
         size: 12345,
       },
       AppReleaseAsset {
-        name: "Donut.Browser_0.1.0_x64.exe".to_string(),
+        name: "Foxia_0.1.0_x64.exe".to_string(),
         browser_download_url: "https://example.com/x64.exe".to_string(),
         size: 12345,
       },
       // Linux assets
       AppReleaseAsset {
-        name: "donutbrowser_0.1.0_amd64.deb".to_string(),
+        name: "foxia-mkt_0.1.0_amd64.deb".to_string(),
         browser_download_url: "https://example.com/amd64.deb".to_string(),
         size: 12345,
       },
       AppReleaseAsset {
-        name: "donutbrowser-0.1.0-1.x86_64.rpm".to_string(),
+        name: "foxia-mkt-0.1.0-1.x86_64.rpm".to_string(),
         browser_download_url: "https://example.com/x86_64.rpm".to_string(),
         size: 12345,
       },
       AppReleaseAsset {
-        name: "Donut.Browser-0.1.0-x86_64.AppImage".to_string(),
+        name: "Foxia-0.1.0-x86_64.AppImage".to_string(),
         browser_download_url: "https://example.com/x86_64.AppImage".to_string(),
         size: 12345,
       },
@@ -1823,12 +1828,12 @@ mod tests {
     // Create mock assets including AppImage
     let assets = vec![
       AppReleaseAsset {
-        name: "donutbrowser_0.1.0_amd64.deb".to_string(),
+        name: "foxia-mkt_0.1.0_amd64.deb".to_string(),
         browser_download_url: "https://example.com/amd64.deb".to_string(),
         size: 12345,
       },
       AppReleaseAsset {
-        name: "Donut.Browser-0.1.0-x86_64.AppImage".to_string(),
+        name: "Foxia-0.1.0-x86_64.AppImage".to_string(),
         browser_download_url: "https://example.com/x86_64.AppImage".to_string(),
         size: 12345,
       },
@@ -1868,24 +1873,24 @@ mod tests {
     let all_assets = vec![
       // macOS assets
       AppReleaseAsset {
-        name: "Donut.Browser_0.1.0_aarch64.dmg".to_string(),
+        name: "Foxia_0.1.0_aarch64.dmg".to_string(),
         browser_download_url: "https://example.com/aarch64.dmg".to_string(),
         size: 12345,
       },
       // Windows assets
       AppReleaseAsset {
-        name: "Donut.Browser_0.1.0_x64.msi".to_string(),
+        name: "Foxia_0.1.0_x64.msi".to_string(),
         browser_download_url: "https://example.com/x64.msi".to_string(),
         size: 12345,
       },
       // Linux assets
       AppReleaseAsset {
-        name: "donutbrowser_0.1.0_amd64.deb".to_string(),
+        name: "foxia-mkt_0.1.0_amd64.deb".to_string(),
         browser_download_url: "https://example.com/amd64.deb".to_string(),
         size: 12345,
       },
       AppReleaseAsset {
-        name: "Donut.Browser-0.1.0-x86_64.AppImage".to_string(),
+        name: "Foxia-0.1.0-x86_64.AppImage".to_string(),
         browser_download_url: "https://example.com/x86_64.AppImage".to_string(),
         size: 12345,
       },

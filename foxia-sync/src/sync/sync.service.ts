@@ -54,7 +54,7 @@ export class SyncService implements OnModuleInit {
     const forcePathStyle =
       this.configService.get<string>("S3_FORCE_PATH_STYLE") !== "false";
 
-    this.bucket = this.configService.get<string>("S3_BUCKET") || "donut-sync";
+    this.bucket = this.configService.get<string>("S3_BUCKET") || "foxia-sync";
 
     this.s3Client = new S3Client({
       endpoint,

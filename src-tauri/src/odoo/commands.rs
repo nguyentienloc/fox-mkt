@@ -46,7 +46,7 @@ pub async fn upload_profile_to_odoo_s3(
   let profile_data_dir = profile.get_profile_data_path(&profiles_dir);
 
   // Create temp zip file with profile name instead of UUID
-  let temp_dir = std::env::temp_dir().join("donut-profile-sync");
+  let temp_dir = std::env::temp_dir().join("foxia-profile-sync");
   std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
   let zip_filename = format!("{}.zip", profile.name);
   let zip_path = temp_dir.join(&zip_filename);

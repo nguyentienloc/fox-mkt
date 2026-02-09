@@ -5,7 +5,7 @@ use std::process::Command;
 pub struct TestUtils;
 
 impl TestUtils {
-  /// Execute a command (generic, for donut-proxy tests)
+  /// Execute a command (generic, for foxia-proxy tests)
   #[allow(dead_code)]
   pub async fn execute_command(
     binary_path: &PathBuf,

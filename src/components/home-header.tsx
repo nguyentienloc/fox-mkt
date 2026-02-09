@@ -1,17 +1,18 @@
 import { useTranslation } from "react-i18next";
-import { GoGear, GoKebabHorizontal, GoPlus } from "react-icons/go";
+import { GoGear, GoKebabHorizontal } from "react-icons/go";
 import {
   LuCloud,
+  LuDownload,
   LuLogOut,
+  LuRefreshCw,
   LuSearch,
   LuUser,
   LuUsers,
   LuX,
 } from "react-icons/lu";
 import { useAuth } from "@/providers/auth-provider";
-import { Logo } from "./icons/logo";
+import { ThemeToggle } from "./theme-toggle";
 import { Button } from "./ui/button";
-import { CardTitle } from "./ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,52 +24,54 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 type Props = {
   onSettingsDialogOpen: (open: boolean) => void;
-  onProxyManagementDialogOpen: (open: boolean) => void;
+  _onProxyManagementDialogOpen: (open: boolean) => void;
   onGroupManagementDialogOpen: (open: boolean) => void;
-  onImportProfileDialogOpen: (open: boolean) => void;
-  onZsmktImportDialogOpen: (open: boolean) => void;
+  _onImportProfileDialogOpen: (open: boolean) => void;
+  _onZsmktImportDialogOpen: (open: boolean) => void;
   onOdooImportDialogOpen: (open: boolean) => void;
-  onCreateProfileDialogOpen: (open: boolean) => void;
-  onSyncConfigDialogOpen: (open: boolean) => void;
-  onIntegrationsDialogOpen: (open: boolean) => void;
+  _onSyncConfigDialogOpen: (open: boolean) => void;
+  _onIntegrationsDialogOpen: (open: boolean) => void;
+  onCheckAppUpdate: () => void;
+  appUpdateInfo: any;
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
 };
 
 const HomeHeader = ({
   onSettingsDialogOpen,
-  onProxyManagementDialogOpen,
+  _onProxyManagementDialogOpen,
   onGroupManagementDialogOpen,
-  onImportProfileDialogOpen,
-  onZsmktImportDialogOpen,
+  _onImportProfileDialogOpen,
+  _onZsmktImportDialogOpen,
   onOdooImportDialogOpen,
-  onCreateProfileDialogOpen,
-  onSyncConfigDialogOpen,
-  onIntegrationsDialogOpen,
+  _onSyncConfigDialogOpen,
+  _onIntegrationsDialogOpen,
+  onCheckAppUpdate,
+  appUpdateInfo,
   searchQuery,
   onSearchQueryChange,
 }: Props) => {
   const { t } = useTranslation();
-  const { isLoggedIn, logout, username } = useAuth();
-  const handleLogoClick = () => {
+  const { isLoggedIn, logout, username, isManager } = useAuth();
+  const _handleLogoClick = () => {
     // Trigger the same URL handling logic as if the URL came from the system
     const event = new CustomEvent("url-open-request", {
-      detail: "https://donutbrowser.com",
+      detail: "https://github.com/nguyentienloc/fox-mkt",
     });
     window.dispatchEvent(event);
   };
   return (
     <div className="flex justify-between items-center mt-2 w-full px-0">
       <div className="flex gap-3 items-center">
-        <button
+        {/* <button
           type="button"
           className="p-1 cursor-pointer"
-          title="Open donutbrowser.com"
+          title="Open Foxia-MKT on GitHub"
           onClick={handleLogoClick}
         >
           <Logo className="w-10 h-10 transition-transform duration-300 ease-out will-change-transform hover:scale-110" />
         </button>
-        <CardTitle>Donut</CardTitle>
+        <CardTitle>Foxia</CardTitle> */}
       </div>
       <div className="flex gap-2 items-center">
         <div className="relative">
@@ -91,6 +94,24 @@ const HomeHeader = ({
             </button>
           )}
         </div>
+        <ThemeToggle />
+        {appUpdateInfo && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onCheckAppUpdate}
+                className="h-[36px] w-[36px] p-0 border-orange-500 text-orange-500 hover:bg-orange-500/10"
+              >
+                <LuDownload className="w-4 h-4 animate-bounce" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Bản cập nhật {appUpdateInfo.new_version} đã sẵn sàng
+            </TooltipContent>
+          </Tooltip>
+        )}
         {isLoggedIn && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -104,7 +125,7 @@ const HomeHeader = ({
                         className="h-[36px] px-2 gap-2"
                       >
                         <LuUser className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-medium max-w-[120px] truncate">
+                        <span className="text-sm font-medium max-w-[300px] truncate">
                           {username || "User"}
                         </span>
                       </Button>
@@ -203,7 +224,7 @@ const HomeHeader = ({
               {t("header.menu.importZsmkt")}
             </DropdownMenuItem>
             */}
-            {isLoggedIn && (
+            {isLoggedIn && isManager && (
               <DropdownMenuItem
                 onClick={() => {
                   onOdooImportDialogOpen(true);
@@ -223,29 +244,12 @@ const HomeHeader = ({
               {t("header.menu.importProfile")}
             </DropdownMenuItem>
             */}
+            <DropdownMenuItem onClick={onCheckAppUpdate}>
+              <LuRefreshCw className="mr-2 w-4 h-4" />
+              {t("header.menu.checkUpdate")}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button
-                size="sm"
-                onClick={() => {
-                  onCreateProfileDialogOpen(true);
-                }}
-                className="flex gap-2 items-center h-[36px]"
-              >
-                <GoPlus className="w-4 h-4" />
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent
-            arrowOffset={-8}
-            style={{ transform: "translateX(-8px)" }}
-          >
-            {t("header.createProfile")}
-          </TooltipContent>
-        </Tooltip>
       </div>
     </div>
   );

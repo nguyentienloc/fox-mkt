@@ -58,8 +58,8 @@ use browser_runner::{
 use profile::manager::{
   check_browser_status, clone_profile, create_browser_profile_new, delete_profile,
   import_zsmkt_profiles_batch, list_browser_profiles, rename_profile, update_camoufox_config,
-  update_profile_note, update_profile_odoo_id, update_profile_proxy, update_profile_tags,
-  update_profile_url, update_wayfern_config,
+  update_profile_details, update_profile_note, update_profile_odoo_id, update_profile_proxy,
+  update_profile_tags, update_profile_url, update_wayfern_config,
 };
 
 use browser_version_manager::{
@@ -100,7 +100,7 @@ use auto_updater::{
 
 use app_auto_updater::{
   check_for_app_updates, check_for_app_updates_manual, download_and_prepare_app_update,
-  restart_application,
+  get_app_version, restart_application,
 };
 
 use profile_importer::{detect_existing_profiles, import_browser_profile};
@@ -369,7 +369,7 @@ async fn get_mcp_config(app_handle: tauri::AppHandle) -> Result<Option<McpConfig
 
   let config_json = serde_json::json!({
     "mcpServers": {
-      "donut-browser": {
+      "foxia": {
         "url": format!("http://127.0.0.1:{}/mcp", port),
         "headers": {
           "Authorization": format!("Bearer {}", token)
@@ -607,9 +607,9 @@ pub fn run() {
 
   // Configure logging plugin with separate logs for dev and production
   let log_file_name = if cfg!(debug_assertions) {
-    "DonutBrowserDev"
+    "FoxiaDev"
   } else {
-    "DonutBrowser"
+    "Foxia"
   };
 
   tauri::Builder::default()
@@ -658,7 +658,7 @@ pub fn run() {
       // Create the main window programmatically
       #[allow(unused_variables)]
       let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-        .title("Donut Browser")
+        .title("Foxia")
         .inner_size(1300.0, 800.0)
         .resizable(true)
         .fullscreen(false)
@@ -1110,6 +1110,7 @@ pub fn run() {
       import_zsmkt_profiles_batch,
       list_browser_profiles,
       launch_browser_profile,
+      update_profile_details,
       fetch_browser_versions_with_count,
       fetch_browser_versions_cached_first,
       fetch_browser_versions_with_count_cached_first,
@@ -1143,6 +1144,7 @@ pub fn run() {
       complete_browser_update_with_auto_update,
       check_for_app_updates,
       check_for_app_updates_manual,
+      get_app_version,
       download_and_prepare_app_update,
       restart_application,
       detect_existing_profiles,

@@ -157,9 +157,9 @@ impl ProxyManager {
   fn get_proxies_dir(&self) -> PathBuf {
     let mut path = self.base_dirs.data_local_dir().to_path_buf();
     path.push(if cfg!(debug_assertions) {
-      "DonutBrowserDev"
+      "FoxiaDev"
     } else {
-      "DonutBrowser"
+      "Foxia"
     });
     path.push("proxies");
     path
@@ -169,9 +169,9 @@ impl ProxyManager {
   fn get_proxy_check_cache_dir(&self) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let mut path = self.base_dirs.cache_dir().to_path_buf();
     path.push(if cfg!(debug_assertions) {
-      "DonutBrowserDev"
+      "FoxiaDev"
     } else {
-      "DonutBrowser"
+      "Foxia"
     });
     path.push("proxy_checks");
     fs::create_dir_all(&path)?;
@@ -615,7 +615,7 @@ impl ProxyManager {
       version: "1.0".to_string(),
       proxies,
       exported_at: Utc::now().to_rfc3339(),
-      source: "DonutBrowser".to_string(),
+      source: "Foxia".to_string(),
     };
 
     serde_json::to_string_pretty(&export_data).map_err(|e| format!("Failed to serialize: {e}"))
@@ -1017,10 +1017,10 @@ impl ProxyManager {
       }
     }
 
-    // Start a new proxy using the donut-proxy binary with the correct CLI interface
+    // Start a new proxy using the foxia-proxy binary with the correct CLI interface
     let mut proxy_cmd = app_handle
       .shell()
-      .sidecar("donut-proxy")
+      .sidecar("foxia-proxy")
       .map_err(|e| format!("Failed to create sidecar: {e}"))?
       .arg("proxy")
       .arg("start");
@@ -1050,11 +1050,11 @@ impl ProxyManager {
     }
 
     // Execute the command and wait for it to complete
-    // The donut-proxy binary should start the worker and then exit
+    // The foxia-proxy binary should start the worker and then exit
     let output = proxy_cmd
       .output()
       .await
-      .map_err(|e| format!("Failed to execute donut-proxy: {e}"))?;
+      .map_err(|e| format!("Failed to execute foxia-proxy: {e}"))?;
 
     if !output.status.success() {
       let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1161,10 +1161,10 @@ impl ProxyManager {
       }
     };
 
-    // Stop the proxy using the donut-proxy binary
+    // Stop the proxy using the foxia-proxy binary
     let proxy_cmd = app_handle
       .shell()
-      .sidecar("donut-proxy")
+      .sidecar("foxia-proxy")
       .map_err(|e| format!("Failed to create sidecar: {e}"))?
       .arg("proxy")
       .arg("stop")
@@ -1229,7 +1229,7 @@ impl ProxyManager {
         // Proxy not found in active_proxies, try to stop it directly by ID
         let proxy_cmd = app_handle
           .shell()
-          .sidecar("donut-proxy")
+          .sidecar("foxia-proxy")
           .map_err(|e| format!("Failed to create sidecar: {e}"))?
           .arg("proxy")
           .arg("stop")
@@ -1408,8 +1408,8 @@ mod tests {
   use hyper_util::rt::TokioIo;
   use tokio::net::TcpListener;
 
-  // Helper function to build donut-proxy binary for testing
-  async fn ensure_donut_proxy_binary() -> Result<PathBuf, Box<dyn std::error::Error>> {
+  // Helper function to build foxia-proxy binary for testing
+  async fn ensure_foxia_proxy_binary() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let cargo_manifest_dir = env::var("CARGO_MANIFEST_DIR")?;
     let project_root = PathBuf::from(cargo_manifest_dir)
       .parent()
@@ -1419,28 +1419,28 @@ mod tests {
       .join("src-tauri")
       .join("target")
       .join("debug")
-      .join("donut-proxy");
+      .join("foxia-proxy");
 
     // Check if binary already exists
     if proxy_binary.exists() {
       return Ok(proxy_binary);
     }
 
-    // Build the donut-proxy binary
-    println!("Building donut-proxy binary for tests...");
+    // Build the foxia-proxy binary
+    println!("Building foxia-proxy binary for tests...");
 
     let build_status = Command::new("cargo")
-      .args(["build", "--bin", "donut-proxy"])
+      .args(["build", "--bin", "foxia-proxy"])
       .current_dir(project_root.join("src-tauri"))
       .status()
       .await?;
 
     if !build_status.success() {
-      return Err("Failed to build donut-proxy binary".into());
+      return Err("Failed to build foxia-proxy binary".into());
     }
 
     if !proxy_binary.exists() {
-      return Err("donut-proxy binary was not created successfully".into());
+      return Err("foxia-proxy binary was not created successfully".into());
     }
 
     Ok(proxy_binary)
@@ -1543,10 +1543,10 @@ mod tests {
     }
   }
 
-  // Integration test that actually builds and uses donut-proxy binary
+  // Integration test that actually builds and uses foxia-proxy binary
   #[tokio::test]
   async fn test_proxy_integration_with_real_proxy() -> Result<(), Box<dyn std::error::Error>> {
-    // This test requires donut-proxy binary to be available
+    // This test requires foxia-proxy binary to be available
     // Skip if we can't find the binary or if proxy startup fails
     use crate::proxy_runner::{start_proxy_process, stop_proxy_process};
     use tokio::net::TcpStream;
@@ -1690,7 +1690,7 @@ mod tests {
   // Test the CLI detachment specifically - ensure the CLI exits properly
   #[tokio::test]
   async fn test_cli_exits_after_proxy_start() -> Result<(), Box<dyn std::error::Error>> {
-    let proxy_path = ensure_donut_proxy_binary().await?;
+    let proxy_path = ensure_foxia_proxy_binary().await?;
 
     // Test that the CLI exits quickly with a mock upstream
     let mut cmd = Command::new(&proxy_path);
@@ -1739,7 +1739,7 @@ mod tests {
   // Test that validates proper CLI detachment behavior
   #[tokio::test]
   async fn test_cli_detachment_behavior() -> Result<(), Box<dyn std::error::Error>> {
-    let proxy_path = ensure_donut_proxy_binary().await?;
+    let proxy_path = ensure_foxia_proxy_binary().await?;
 
     // Test that the CLI command exits quickly even with a real upstream
     let mut cmd = Command::new(&proxy_path);
@@ -1777,7 +1777,7 @@ mod tests {
   // Test that validates URL encoding for special characters in credentials
   #[tokio::test]
   async fn test_proxy_credentials_encoding() -> Result<(), Box<dyn std::error::Error>> {
-    let proxy_path = ensure_donut_proxy_binary().await?;
+    let proxy_path = ensure_foxia_proxy_binary().await?;
 
     // Test with credentials that include special characters
     let mut cmd = Command::new(&proxy_path);

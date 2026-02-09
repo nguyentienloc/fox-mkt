@@ -36,11 +36,11 @@ fn main() {
   }
 
   // Inject vault password at build time
-  if let Ok(vault_password) = std::env::var("DONUT_BROWSER_VAULT_PASSWORD") {
-    println!("cargo:rustc-env=DONUT_BROWSER_VAULT_PASSWORD={vault_password}");
+  if let Ok(vault_password) = std::env::var("FOXIA_MKT_VAULT_PASSWORD") {
+    println!("cargo:rustc-env=FOXIA_MKT_VAULT_PASSWORD={vault_password}");
   } else {
     // Use default password if environment variable is not set
-    println!("cargo:rustc-env=DONUT_BROWSER_VAULT_PASSWORD=donutbrowser-api-vault-password");
+    println!("cargo:rustc-env=FOXIA_MKT_VAULT_PASSWORD=foxia-mkt-api-vault-password");
   }
 
   // Tell Cargo to rebuild if the proxy binary source changes
@@ -54,7 +54,7 @@ fn main() {
   println!("cargo:rerun-if-changed=binaries");
 
   // Only run tauri_build if all external binaries exist
-  // This allows building donut-proxy sidecar without the other binaries present
+  // This allows building foxia-proxy sidecar without the other binaries present
   if external_binaries_exist() {
     tauri_build::build()
   } else {
@@ -79,19 +79,19 @@ fn external_binaries_exist() -> bool {
   let binaries_dir = PathBuf::from(&manifest_dir).join("binaries");
 
   // Check for all required external binaries (must match tauri.conf.json externalBin)
-  let (donut_proxy_name, donut_daemon_name) = if target.contains("windows") {
+  let (foxia_proxy_name, foxia_daemon_name) = if target.contains("windows") {
     (
-      format!("donut-proxy-{}.exe", target),
-      format!("donut-daemon-{}.exe", target),
+      format!("foxia-proxy-{}.exe", target),
+      format!("foxia-daemon-{}.exe", target),
     )
   } else {
     (
-      format!("donut-proxy-{}", target),
-      format!("donut-daemon-{}", target),
+      format!("foxia-proxy-{}", target),
+      format!("foxia-daemon-{}", target),
     )
   };
 
-  binaries_dir.join(&donut_proxy_name).exists() && binaries_dir.join(&donut_daemon_name).exists()
+  binaries_dir.join(&foxia_proxy_name).exists() && binaries_dir.join(&foxia_daemon_name).exists()
 }
 
 fn ensure_dist_folder_exists() {

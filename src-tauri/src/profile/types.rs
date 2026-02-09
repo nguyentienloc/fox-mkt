@@ -49,6 +49,12 @@ pub struct BrowserProfile {
   pub created_at: Option<u64>, // Creation timestamp in epoch seconds
   #[serde(default)]
   pub odoo_proxy: Option<crate::odoo::types::OdooProxy>,
+  #[serde(default)]
+  pub username: Option<String>,
+  #[serde(default)]
+  pub password: Option<String>,
+  #[serde(default)]
+  pub user_agent: Option<String>,
   #[serde(skip_deserializing)]
   pub absolute_path: Option<String>,
 }

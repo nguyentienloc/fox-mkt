@@ -74,18 +74,18 @@ export function PermissionDialog({
   const getPermissionTitle = (type: PermissionType) => {
     switch (type) {
       case "microphone":
-        return "Microphone Access Required";
+        return "Yêu cầu quyền truy cập Microphone";
       case "camera":
-        return "Camera Access Required";
+        return "Yêu cầu quyền truy cập Camera";
     }
   };
 
   const getPermissionDescription = (type: PermissionType) => {
     switch (type) {
       case "microphone":
-        return "Donut Browser needs access to your microphone to enable microphone functionality in web browsers. Each website that wants to use your microphone will still ask for your permission individually.";
+        return "Foxia cần quyền truy cập microphone để kích hoạt tính năng microphone trong trình duyệt. Mỗi trang web muốn sử dụng microphone vẫn sẽ yêu cầu quyền riêng của bạn.";
       case "camera":
-        return "Donut Browser needs access to your camera to enable camera functionality in web browsers. Each website that wants to use your camera will still ask for your permission individually.";
+        return "Foxia cần quyền truy cập camera để kích hoạt tính năng camera trong trình duyệt. Mỗi trang web muốn sử dụng camera vẫn sẽ yêu cầu quyền riêng của bạn.";
     }
   };
 
@@ -131,8 +131,8 @@ export function PermissionDialog({
           {isCurrentPermissionGranted && (
             <div className="p-3 bg-green-50 rounded-lg dark:bg-green-900/20">
               <p className="text-sm text-green-800 dark:text-green-200">
-                ✅ Permission granted! Browsers launched from Donut Browser can
-                now access your {permissionType}.
+                ✅ Đã cấp quyền! Các trình duyệt khởi chạy từ Foxia có thể truy
+                cập {permissionType} của bạn.
               </p>
             </div>
           )}
@@ -140,8 +140,8 @@ export function PermissionDialog({
           {!isCurrentPermissionGranted && (
             <div className="p-3 bg-amber-50 rounded-lg dark:bg-amber-900/20">
               <p className="text-sm text-amber-800 dark:text-amber-200">
-                ⚠️ Permission not granted. Click the button below to request
-                access to your {permissionType}.
+                ⚠️ Chưa cấp quyền. Nhấn nút bên dưới để yêu cầu quyền truy cập{" "}
+                {permissionType}.
               </p>
             </div>
           )}
@@ -149,7 +149,7 @@ export function PermissionDialog({
 
         <DialogFooter className="gap-2">
           <RippleButton variant="outline" onClick={onClose}>
-            {isCurrentPermissionGranted ? "Done" : "Cancel"}
+            {isCurrentPermissionGranted ? "Xong" : "Hủy"}
           </RippleButton>
 
           {!isCurrentPermissionGranted && (
@@ -160,7 +160,7 @@ export function PermissionDialog({
               }}
               className="min-w-24"
             >
-              Grant Access
+              Cấp quyền
             </LoadingButton>
           )}
         </DialogFooter>

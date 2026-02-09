@@ -45,12 +45,12 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   const { setTheme } = useTheme();
 
   const [settings, setSettings] = useState<AppSettings>({
-    theme: "system",
+    theme: "light",
     api_enabled: false,
   });
 
   const [originalSettings, setOriginalSettings] = useState<AppSettings>({
-    theme: "system",
+    theme: "light",
     api_enabled: false,
   });
 

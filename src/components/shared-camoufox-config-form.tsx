@@ -28,7 +28,6 @@ interface SharedCamoufoxConfigFormProps {
   onConfigChange: (key: keyof CamoufoxConfig, value: unknown) => void;
   className?: string;
   isCreating?: boolean; // Flag to indicate if this is for creating a new profile
-  forceAdvanced?: boolean; // Force advanced mode (for editing)
   readOnly?: boolean; // Flag to indicate if the form should be read-only
   browserType?: "camoufox" | "wayfern"; // Browser type to customize form options
 }
@@ -117,7 +116,6 @@ export function SharedCamoufoxConfigForm({
   onConfigChange,
   className = "",
   isCreating = false,
-  forceAdvanced = false,
   readOnly = false,
   browserType = "camoufox",
 }: SharedCamoufoxConfigFormProps) {

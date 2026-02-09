@@ -29,9 +29,9 @@ impl ProfileManager {
   pub fn get_profiles_dir(&self) -> PathBuf {
     let mut path = self.base_dirs.data_local_dir().to_path_buf();
     path.push(if cfg!(debug_assertions) {
-      "DonutBrowserDev"
+      "FoxiaDev"
     } else {
-      "DonutBrowser"
+      "Foxia"
     });
     path.push("profiles");
     path
@@ -40,9 +40,9 @@ impl ProfileManager {
   pub fn get_binaries_dir(&self) -> PathBuf {
     let mut path = self.base_dirs.data_local_dir().to_path_buf();
     path.push(if cfg!(debug_assertions) {
-      "DonutBrowserDev"
+      "FoxiaDev"
     } else {
-      "DonutBrowser"
+      "Foxia"
     });
     path.push("binaries");
     path
@@ -60,6 +60,8 @@ impl ProfileManager {
     camoufox_config: Option<CamoufoxConfig>,
     wayfern_config: Option<WayfernConfig>,
     group_id: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
   ) -> Result<BrowserProfile, Box<dyn std::error::Error>> {
     log::info!("Attempting to create profile: {name}");
 
@@ -77,6 +79,8 @@ impl ProfileManager {
     let profile_data_dir = profile_uuid_dir.join("profile");
     create_dir_all(&profile_uuid_dir)?;
     create_dir_all(&profile_data_dir)?;
+
+    let mut user_agent = None;
 
     let final_camoufox_config = if browser == "camoufox" {
       let mut config = camoufox_config.unwrap_or_default();
@@ -114,6 +118,9 @@ impl ProfileManager {
           profile_url: None,
           created_at: Some(chrono::Utc::now().timestamp() as u64),
           odoo_proxy: None,
+          username: username.clone(),
+          password: password.clone(),
+          user_agent: None,
           absolute_path: None,
         };
         if let Ok(gen_fp) = self
@@ -121,7 +128,22 @@ impl ProfileManager {
           .generate_fingerprint_config(app_handle, &temp_profile, &config)
           .await
         {
+          // Extract User Agent from Camoufox fingerprint
+          if let Ok(fp_val) = serde_json::from_str::<serde_json::Value>(&gen_fp) {
+            if let Some(ua) = fp_val.get("headers.User-Agent").and_then(|v| v.as_str()) {
+              user_agent = Some(ua.to_string());
+            } else if let Some(ua) = fp_val.get("navigator.userAgent").and_then(|v| v.as_str()) {
+              user_agent = Some(ua.to_string());
+            }
+          }
           config.fingerprint = Some(gen_fp);
+        }
+      } else if let Some(fp_str) = &config.fingerprint {
+        // Extract User Agent from existing fingerprint
+        if let Ok(fp_val) = serde_json::from_str::<serde_json::Value>(fp_str) {
+          if let Some(ua) = fp_val.get("headers.User-Agent").and_then(|v| v.as_str()) {
+            user_agent = Some(ua.to_string());
+          }
         }
       }
       config.proxy = None;
@@ -166,6 +188,9 @@ impl ProfileManager {
           profile_url: None,
           created_at: Some(chrono::Utc::now().timestamp() as u64),
           odoo_proxy: None,
+          username: username.clone(),
+          password: password.clone(),
+          user_agent: None,
           absolute_path: None,
         };
         if let Ok(gen_fp) = self
@@ -173,7 +198,20 @@ impl ProfileManager {
           .generate_fingerprint_config(app_handle, &temp_profile, &config)
           .await
         {
+          // Extract User Agent from Wayfern fingerprint
+          if let Ok(fp_val) = serde_json::from_str::<serde_json::Value>(&gen_fp) {
+            if let Some(ua) = fp_val.get("userAgent").and_then(|v| v.as_str()) {
+              user_agent = Some(ua.to_string());
+            }
+          }
           config.fingerprint = Some(gen_fp);
+        }
+      } else if let Some(fp_str) = &config.fingerprint {
+        // Extract User Agent from existing fingerprint
+        if let Ok(fp_val) = serde_json::from_str::<serde_json::Value>(fp_str) {
+          if let Some(ua) = fp_val.get("userAgent").and_then(|v| v.as_str()) {
+            user_agent = Some(ua.to_string());
+          }
         }
       }
       config.proxy = None;
@@ -202,6 +240,9 @@ impl ProfileManager {
       profile_url: None,
       created_at: Some(chrono::Utc::now().timestamp() as u64),
       odoo_proxy: None,
+      username,
+      password,
+      user_agent,
       absolute_path: None,
     };
 
@@ -256,6 +297,32 @@ impl ProfileManager {
       .find(|p| p.id == profile_uuid)
       .ok_or("Profile not found")?;
     profile.name = new_name.to_string();
+    self.save_profile(&profile)?;
+    let _ = events::emit_empty("profiles-changed");
+    Ok(profile)
+  }
+
+  pub fn update_profile_details(
+    &self,
+    _app_handle: &tauri::AppHandle,
+    profile_id: &str,
+    name: String,
+    username: Option<String>,
+    password: Option<String>,
+    user_agent: Option<String>,
+  ) -> Result<BrowserProfile, Box<dyn std::error::Error>> {
+    let profile_uuid = uuid::Uuid::parse_str(profile_id)?;
+    let mut profile = self
+      .list_profiles()?
+      .into_iter()
+      .find(|p| p.id == profile_uuid)
+      .ok_or("Profile not found")?;
+
+    profile.name = name;
+    profile.username = username;
+    profile.password = password;
+    profile.user_agent = user_agent;
+
     self.save_profile(&profile)?;
     let _ = events::emit_empty("profiles-changed");
     Ok(profile)
@@ -583,6 +650,8 @@ pub async fn create_browser_profile_with_group(
   camoufox_config: Option<CamoufoxConfig>,
   wayfern_config: Option<WayfernConfig>,
   group_id: Option<String>,
+  username: Option<String>,
+  password: Option<String>,
 ) -> Result<BrowserProfile, String> {
   ProfileManager::instance()
     .create_profile_with_group(
@@ -595,6 +664,8 @@ pub async fn create_browser_profile_with_group(
       camoufox_config,
       wayfern_config,
       group_id,
+      username,
+      password,
     )
     .await
     .map_err(|e| e.to_string())
@@ -685,6 +756,20 @@ pub fn rename_profile(
     .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub fn update_profile_details(
+  app_handle: tauri::AppHandle,
+  profile_id: String,
+  name: String,
+  username: Option<String>,
+  password: Option<String>,
+  user_agent: Option<String>,
+) -> Result<BrowserProfile, String> {
+  ProfileManager::instance()
+    .update_profile_details(&app_handle, &profile_id, name, username, password, user_agent)
+    .map_err(|e| e.to_string())
+}
+
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn create_browser_profile_new(
@@ -697,6 +782,8 @@ pub async fn create_browser_profile_new(
   camoufox_config: Option<CamoufoxConfig>,
   wayfern_config: Option<WayfernConfig>,
   group_id: Option<String>,
+  username: Option<String>,
+  password: Option<String>,
 ) -> Result<BrowserProfile, String> {
   let browser_type = BrowserType::from_str(&browser_str).map_err(|e| e.to_string())?;
   ProfileManager::instance()
@@ -710,6 +797,8 @@ pub async fn create_browser_profile_new(
       camoufox_config,
       wayfern_config,
       group_id,
+      username,
+      password,
     )
     .await
     .map_err(|e| e.to_string())

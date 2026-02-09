@@ -90,7 +90,7 @@
       "title": "Trình duyệt mặc định",
       "setAsDefault": "Đặt làm mặc định",
       "alreadyDefault": "Đã là mặc định",
-      "description": "Khi là mặc định, Donut Browser sẽ xử lý các liên kết web và cho phép bạn chọn profile để mở."
+      "description": "Khi là mặc định, Foxia sẽ xử lý các liên kết web và cho phép bạn chọn profile để mở."
     },
     "permissions": {
       "title": "Quyền hệ thống",
@@ -134,7 +134,8 @@
       "importOdoo": "Nhập từ Server",
       "importZsmkt": "Nhập từ zs-mkt (JSON)",
       "logoutOdoo": "Đăng xuất",
-      "odooAccount": "Tài khoản"
+      "odooAccount": "Tài khoản",
+      "checkUpdate": "Kiểm tra cập nhật"
     }
   },
   "profiles": {
@@ -456,5 +457,9 @@
         "dischargingTimePlaceholder": "ví dụ: 0"
       }
     }
+  },
+  "auth": {
+    "checking_status": "Đang xác nhận trạng thái...",
+    "launching": "Đang khởi động..."
   }
 }

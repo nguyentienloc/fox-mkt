@@ -107,8 +107,8 @@ export function AppUpdateToast({
                 {updateReady
                   ? "The update is ready, restart app"
                   : isUpdating
-                    ? `${getStageDisplayName(updateProgress?.stage)} Donut Browser Update`
-                    : "Donut Browser Update Available"}
+                    ? `${getStageDisplayName(updateProgress?.stage)} Foxia Update`
+                    : "Foxia Update Available"}
               </span>
               {!updateReady && (
                 <Badge

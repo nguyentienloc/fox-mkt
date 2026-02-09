@@ -14,8 +14,8 @@ use tokio::time::sleep;
 
 const WIREGUARD_IMAGE: &str = "linuxserver/wireguard:latest";
 const OPENVPN_IMAGE: &str = "kylemanna/openvpn:latest";
-const WG_CONTAINER: &str = "donut-wg-test";
-const OVPN_CONTAINER: &str = "donut-ovpn-test";
+const WG_CONTAINER: &str = "foxia-wg-test";
+const OVPN_CONTAINER: &str = "foxia-ovpn-test";
 
 /// Check if running in CI environment
 pub fn is_ci() -> bool {

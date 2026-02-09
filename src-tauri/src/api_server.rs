@@ -592,7 +592,6 @@ async fn create_profile(
     None
   };
 
-  // Create profile using the async create_profile_with_group method
   match profile_manager
     .create_profile_with_group(
       &state.app_handle,
@@ -604,6 +603,8 @@ async fn create_profile(
       camoufox_config,
       wayfern_config,
       request.group_id.clone(),
+      None, // username
+      None, // password
     )
     .await
   {

@@ -1,4 +1,4 @@
-// Donut Browser Daemon - Background process for tray icon and services
+// Foxia Daemon - Background process for tray icon and services
 // This runs independently of the main Tauri GUI
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
@@ -18,7 +18,7 @@ use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tokio::runtime::Runtime;
 use tray_icon::TrayIcon;
 
-use donutbrowser_lib::daemon::{autostart, services, tray};
+use foxia_mkt_lib::daemon::{autostart, services, tray};
 
 static SHOULD_QUIT: AtomicBool = AtomicBool::new(false);
 
@@ -329,9 +329,9 @@ fn show_status() {
 }
 
 fn print_usage() {
-  eprintln!("Donut Browser Daemon");
+  eprintln!("Foxia Daemon");
   eprintln!();
-  eprintln!("Usage: donut-daemon <command>");
+  eprintln!("Usage: foxia-daemon <command>");
   eprintln!();
   eprintln!("Commands:");
   eprintln!("  start       Start the daemon (detaches from terminal)");
@@ -371,7 +371,7 @@ fn main() {
     }
     "autostart" => {
       if args.len() < 3 {
-        eprintln!("Usage: donut-daemon autostart <enable|disable|status>");
+        eprintln!("Usage: foxia-daemon autostart <enable|disable|status>");
         process::exit(1);
       }
       match args[2].as_str() {

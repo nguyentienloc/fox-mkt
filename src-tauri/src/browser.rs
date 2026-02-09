@@ -72,7 +72,8 @@ mod macos {
     install_dir: &Path,
   ) -> Result<PathBuf, Box<dyn std::error::Error>> {
     // Find the .app directory
-    let app_path = std::fs::read_dir(install_dir)?
+    let entries = std::fs::read_dir(install_dir).map_err(|_| "Browser app not found")?;
+    let app_path = entries
       .filter_map(Result::ok)
       .find(|entry| entry.path().extension().is_some_and(|ext| ext == "app"))
       .ok_or("Browser app not found")?;
@@ -233,7 +234,8 @@ mod macos {
   ) -> Result<PathBuf, Box<dyn std::error::Error>> {
     // Wayfern is Chromium-based, look for Chromium.app
     // Find the .app directory
-    let app_path = std::fs::read_dir(install_dir)?
+    let entries = std::fs::read_dir(install_dir).map_err(|_| "Wayfern app not found")?;
+    let app_path = entries
       .filter_map(Result::ok)
       .find(|entry| entry.path().extension().is_some_and(|ext| ext == "app"))
       .ok_or("Wayfern app not found")?;
@@ -261,8 +263,20 @@ mod macos {
     // On macOS, check for .app files (Chromium.app)
     if let Ok(entries) = std::fs::read_dir(install_dir) {
       for entry in entries.flatten() {
-        if entry.path().extension().is_some_and(|ext| ext == "app") {
-          return true;
+        let path = entry.path();
+        if path.extension().is_some_and(|ext| ext == "app") {
+          // Thorough check: verify MacOS directory exists and contains at least one executable
+          let macos_dir = path.join("Contents").join("MacOS");
+          if macos_dir.exists() && macos_dir.is_dir() {
+            if let Ok(sub_entries) = std::fs::read_dir(macos_dir) {
+              if sub_entries
+                .flatten()
+                .any(|e| e.path().is_file() && !e.file_name().to_string_lossy().starts_with('.'))
+              {
+                return true;
+              }
+            }
+          }
         }
       }
     }
@@ -273,8 +287,20 @@ mod macos {
     // On macOS, check for .app files
     if let Ok(entries) = std::fs::read_dir(install_dir) {
       for entry in entries.flatten() {
-        if entry.path().extension().is_some_and(|ext| ext == "app") {
-          return true;
+        let path = entry.path();
+        if path.extension().is_some_and(|ext| ext == "app") {
+          // Thorough check: verify MacOS directory exists and contains at least one executable
+          let macos_dir = path.join("Contents").join("MacOS");
+          if macos_dir.exists() && macos_dir.is_dir() {
+            if let Ok(sub_entries) = std::fs::read_dir(macos_dir) {
+              if sub_entries
+                .flatten()
+                .any(|e| e.path().is_file() && !e.file_name().to_string_lossy().starts_with('.'))
+              {
+                return true;
+              }
+            }
+          }
         }
       }
     }

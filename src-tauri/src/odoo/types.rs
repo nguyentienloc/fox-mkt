@@ -31,6 +31,12 @@ pub struct OdooProfile {
   pub created_at: Option<serde_json::Value>,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub create_date: Option<serde_json::Value>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub username: Option<serde_json::Value>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub password: Option<serde_json::Value>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub browser: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,6 +62,7 @@ pub struct OdooLoginResult {
   // Optional fields returned by some Odoo versions/custom modules
   pub db: Option<String>,
   pub login: Option<String>,
+  pub is_quanlytainguyen: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

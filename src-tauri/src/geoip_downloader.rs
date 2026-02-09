@@ -225,7 +225,7 @@ impl GeoIPDownloader {
     let response = self
       .client
       .get(&url)
-      .header("User-Agent", "Mozilla/5.0 (compatible; donutbrowser)")
+      .header("User-Agent", "Mozilla/5.0 (compatible; foxia-mkt)")
       .send()
       .await?;
 
@@ -312,7 +312,7 @@ mod tests {
     let response = downloader
       .client
       .get(&url)
-      .header("User-Agent", "Mozilla/5.0 (compatible; donutbrowser)")
+      .header("User-Agent", "Mozilla/5.0 (compatible; foxia-mkt)")
       .send()
       .await
       .expect("Request should succeed");

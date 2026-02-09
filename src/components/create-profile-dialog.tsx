@@ -60,6 +60,8 @@ interface CreateProfileDialogProps {
     camoufoxConfig?: CamoufoxConfig;
     wayfernConfig?: WayfernConfig;
     groupId?: string;
+    username?: string;
+    password?: string;
   }) => Promise<void>;
   selectedGroupId?: string;
 }
@@ -100,6 +102,8 @@ export function CreateProfileDialog({
 }: CreateProfileDialogProps) {
   const { t } = useTranslation();
   const [profileName, setProfileName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [currentStep, setCurrentStep] = useState<
     "browser-selection" | "browser-config"
   >("browser-selection");
@@ -132,6 +136,8 @@ export function CreateProfileDialog({
     setCurrentStep("browser-selection");
     setSelectedBrowser(null);
     setProfileName("");
+    setUsername("");
+    setPassword("");
     setSelectedProxyId(undefined);
   };
 
@@ -140,6 +146,8 @@ export function CreateProfileDialog({
     setCurrentStep("browser-selection");
     setSelectedBrowser(null);
     setProfileName("");
+    setUsername("");
+    setPassword("");
     setSelectedProxyId(undefined);
   };
 
@@ -357,6 +365,8 @@ export function CreateProfileDialog({
             wayfernConfig: finalWayfernConfig,
             groupId:
               selectedGroupId !== "default" ? selectedGroupId : undefined,
+            username: username.trim() || undefined,
+            password: password.trim() || undefined,
           });
         } else {
           // Default to Camoufox
@@ -379,6 +389,8 @@ export function CreateProfileDialog({
             camoufoxConfig: finalCamoufoxConfig,
             groupId:
               selectedGroupId !== "default" ? selectedGroupId : undefined,
+            username: username.trim() || undefined,
+            password: password.trim() || undefined,
           });
         }
       } else {
@@ -402,6 +414,8 @@ export function CreateProfileDialog({
           releaseType: bestVersion.releaseType,
           proxyId: selectedProxyId,
           groupId: selectedGroupId !== "default" ? selectedGroupId : undefined,
+          username: username.trim() || undefined,
+          password: password.trim() || undefined,
         });
       }
 
@@ -423,6 +437,8 @@ export function CreateProfileDialog({
     setActiveTab("anti-detect");
     setSelectedBrowser(null);
     setSelectedProxyId(undefined);
+    setUsername("");
+    setPassword("");
     setReleaseTypes({});
     setIsLoadingReleaseTypes(false);
     setReleaseTypesError(null);
@@ -636,6 +652,29 @@ export function CreateProfileDialog({
                             }}
                             placeholder="Enter profile name"
                           />
+                        </div>
+
+                        {/* Account & Password */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="account">Account</Label>
+                            <Input
+                              id="account"
+                              value={username}
+                              onChange={(e) => setUsername(e.target.value)}
+                              placeholder="Username/Email"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="password">Password</Label>
+                            <Input
+                              id="password"
+                              type="password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              placeholder="Password"
+                            />
+                          </div>
                         </div>
 
                         {selectedBrowser === "wayfern" ? (

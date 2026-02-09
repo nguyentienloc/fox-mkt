@@ -52,8 +52,8 @@ export function WayfernTermsDialog({
         <DialogHeader>
           <DialogTitle>Wayfern Terms and Conditions</DialogTitle>
           <DialogDescription>
-            Before using Donut Browser, you must read and agree to Wayfern's
-            Terms and Conditions.
+            Before using Foxia, you must read and agree to Wayfern's Terms and
+            Conditions.
           </DialogDescription>
         </DialogHeader>
 

@@ -680,9 +680,9 @@ impl Downloader {
     let binaries_dir = if let Some(base_dirs) = directories::BaseDirs::new() {
       let mut path = base_dirs.data_local_dir().to_path_buf();
       path.push(if cfg!(debug_assertions) {
-        "DonutBrowserDev"
+        "FoxiaDev"
       } else {
-        "DonutBrowser"
+        "Foxia"
       });
       path.push("binaries");
       path

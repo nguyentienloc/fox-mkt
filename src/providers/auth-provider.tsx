@@ -9,16 +9,22 @@ import {
   useEffect,
   useState,
 } from "react";
+import { LaunchingScreen } from "@/components/launching-screen";
 
 interface AuthContextType {
   isLoggedIn: boolean;
   isLoading: boolean;
   username: string | null;
+  isManager: boolean;
   login: (
     baseUrl: string,
     login: string,
     pass: string,
-  ) => Promise<{ session_id?: string; name?: string }>;
+  ) => Promise<{
+    session_id?: string;
+    name?: string;
+    is_quanlytainguyen?: boolean;
+  }>;
   logout: () => Promise<void>;
 }
 
@@ -28,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState<string | null>(null);
+  const [isManager, setIsManager] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -42,11 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (storedUsername) {
             setUsername(storedUsername);
           }
+          const storedIsManager =
+            localStorage.getItem("odoo_is_manager") === "true";
+          setIsManager(storedIsManager);
         }
 
         if (!loggedIn && pathname !== "/login") {
           router.push("/login");
           localStorage.removeItem("odoo_username");
+          localStorage.removeItem("odoo_is_manager");
         } else if (loggedIn && pathname === "/login") {
           router.push("/");
         }
@@ -65,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session_id?: string;
       name?: string;
       login?: string;
+      is_quanlytainguyen?: boolean;
     }>("odoo_login", {
       baseUrl,
       login: loginEmail,
@@ -74,6 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const name = result.name || result.login || loginEmail;
     setUsername(name);
     localStorage.setItem("odoo_username", name);
+
+    const manager = !!result.is_quanlytainguyen;
+    setIsManager(manager);
+    localStorage.setItem("odoo_is_manager", String(manager));
+
     router.push("/");
     return result;
   };
@@ -82,21 +99,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await invoke("odoo_logout");
     setIsLoggedIn(false);
     setUsername(null);
+    setIsManager(false);
     localStorage.removeItem("odoo_username");
+    localStorage.removeItem("odoo_is_manager");
     router.push("/login");
   };
 
+  const showChildren =
+    (isLoggedIn && pathname !== "/login") ||
+    (!isLoggedIn && pathname === "/login");
+
   return (
     <AuthContext.Provider
-      value={{ isLoggedIn, isLoading, username, login, logout }}
+      value={{ isLoggedIn, isLoading, username, isManager, login, logout }}
     >
-      {!isLoading ? (
-        children
-      ) : (
-        <div className="flex items-center justify-center min-h-screen bg-background">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      )}
+      {isLoading || !showChildren ? <LaunchingScreen /> : children}
     </AuthContext.Provider>
   );
 }

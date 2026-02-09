@@ -79,6 +79,7 @@ interface ProfilesDataTableProps {
   onDownloadFromOdoo?: (profile: BrowserProfile) => Promise<void>;
   onImportCloudProfile?: (profile: any) => Promise<void>;
   uploadingProfiles?: Set<string>;
+  onViewProfileDetails?: (profile: BrowserProfile) => void;
 
   // Pagination
   currentPage?: number;
@@ -143,6 +144,7 @@ interface TableMeta {
   onDownloadFromOdoo?: (profile: BrowserProfile) => Promise<void>;
   onImportCloudProfile?: (profile: any) => Promise<void>;
   uploadingProfiles: Set<string>;
+  onViewProfileDetails?: (profile: BrowserProfile) => void;
 }
 
 export function ProfilesDataTable({
@@ -163,6 +165,7 @@ export function ProfilesDataTable({
   onDownloadFromOdoo,
   onImportCloudProfile,
   uploadingProfiles = new Set(),
+  onViewProfileDetails,
   currentPage = 1,
   totalPages = 1,
   onPageChange,
@@ -522,6 +525,7 @@ export function ProfilesDataTable({
       onDownloadFromOdoo,
       onImportCloudProfile,
       uploadingProfiles,
+      onViewProfileDetails,
     }),
     [
       selectedProfiles,
@@ -556,6 +560,7 @@ export function ProfilesDataTable({
       handleCheckboxChange,
       handleIconClick,
       uploadingProfiles,
+      onViewProfileDetails,
     ],
   );
 
@@ -957,6 +962,11 @@ export function ProfilesDataTable({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => meta.onViewProfileDetails?.(profile)}
+                >
+                  Xem chi tiết
+                </DropdownMenuItem>
                 {!isCloudOnly && (
                   <DropdownMenuItem
                     onClick={() => meta.onCloneProfile?.(profile)}

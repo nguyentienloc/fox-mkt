@@ -26,7 +26,7 @@ pub const DEFAULT_EXCLUDE_PATTERNS: &[&str] = &[
   "LOG",
   "LOG.old",
   "LOCK",
-  ".donut-sync/**",
+  ".foxia-sync/**",
 ];
 
 /// A single file entry in the manifest
@@ -440,7 +440,7 @@ pub fn compute_diff(local: &SyncManifest, remote: Option<&SyncManifest>) -> Mani
 
 /// Get the path to the hash cache file for a profile
 pub fn get_cache_path(profile_dir: &Path) -> std::path::PathBuf {
-  profile_dir.join(".donut-sync").join("cache.json")
+  profile_dir.join(".foxia-sync").join("cache.json")
 }
 
 #[cfg(test)]

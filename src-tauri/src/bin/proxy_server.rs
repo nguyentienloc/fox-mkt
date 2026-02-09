@@ -1,9 +1,9 @@
 use clap::{Arg, Command};
-use donutbrowser_lib::proxy_runner::{
+use foxia_mkt_lib::proxy_runner::{
   start_proxy_process_with_profile, stop_all_proxy_processes, stop_proxy_process,
 };
-use donutbrowser_lib::proxy_server::run_proxy_server;
-use donutbrowser_lib::proxy_storage::get_proxy_config;
+use foxia_mkt_lib::proxy_server::run_proxy_server;
+use foxia_mkt_lib::proxy_storage::get_proxy_config;
 use std::process;
 
 fn set_high_priority() {
@@ -104,7 +104,7 @@ async fn main() {
     }
   }));
 
-  let matches = Command::new("donut-proxy")
+  let matches = Command::new("foxia-proxy")
     .subcommand(
       Command::new("proxy")
         .about("Manage proxy servers")
@@ -235,7 +235,7 @@ async fn main() {
         }
       } else if let Some(upstream) = stop_matches.get_one::<String>("upstream") {
         // Find proxies with this upstream URL
-        let configs = donutbrowser_lib::proxy_storage::list_proxy_configs();
+        let configs = foxia_mkt_lib::proxy_storage::list_proxy_configs();
         let matching_configs: Vec<_> = configs
           .iter()
           .filter(|config| config.upstream_url == *upstream)
@@ -268,7 +268,7 @@ async fn main() {
         }
       }
     } else if proxy_matches.subcommand_matches("list").is_some() {
-      let configs = donutbrowser_lib::proxy_storage::list_proxy_configs();
+      let configs = foxia_mkt_lib::proxy_storage::list_proxy_configs();
       // Use println! here because this needs to go to stdout for parsing
       println!("{}", serde_json::to_string(&configs).unwrap());
       process::exit(0);

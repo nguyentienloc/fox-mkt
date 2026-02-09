@@ -5,7 +5,7 @@
 
 mod test_harness;
 
-use donutbrowser_lib::vpn::{
+use foxia_mkt_lib::vpn::{
   detect_vpn_type, parse_openvpn_config, parse_wireguard_config, OpenVpnConfig, VpnConfig,
   VpnStorage, VpnType, WireGuardConfig,
 };
@@ -313,7 +313,7 @@ async fn test_wireguard_tunnel_init() {
     preshared_key: None,
   };
 
-  use donutbrowser_lib::vpn::{VpnTunnel, WireGuardTunnel};
+  use foxia_mkt_lib::vpn::{VpnTunnel, WireGuardTunnel};
 
   let tunnel = WireGuardTunnel::new("test-wg".to_string(), config);
   assert_eq!(tunnel.vpn_id(), "test-wg");
@@ -337,7 +337,7 @@ async fn test_openvpn_tunnel_init() {
     has_inline_key: false,
   };
 
-  use donutbrowser_lib::vpn::{OpenVpnTunnel, VpnTunnel};
+  use foxia_mkt_lib::vpn::{OpenVpnTunnel, VpnTunnel};
 
   let tunnel = OpenVpnTunnel::new("test-ovpn".to_string(), config);
   assert_eq!(tunnel.vpn_id(), "test-ovpn");
@@ -349,7 +349,7 @@ async fn test_openvpn_tunnel_init() {
 #[tokio::test]
 #[serial]
 async fn test_tunnel_manager() {
-  use donutbrowser_lib::vpn::{TunnelManager, VpnStatus, VpnTunnel};
+  use foxia_mkt_lib::vpn::{TunnelManager, VpnStatus, VpnTunnel};
 
   // Create a mock tunnel for testing the manager
   struct MockTunnel {
@@ -359,12 +359,12 @@ async fn test_tunnel_manager() {
 
   #[async_trait::async_trait]
   impl VpnTunnel for MockTunnel {
-    async fn connect(&mut self) -> Result<(), donutbrowser_lib::vpn::VpnError> {
+    async fn connect(&mut self) -> Result<(), foxia_mkt_lib::vpn::VpnError> {
       self.connected = true;
       Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), donutbrowser_lib::vpn::VpnError> {
+    async fn disconnect(&mut self) -> Result<(), foxia_mkt_lib::vpn::VpnError> {
       self.connected = false;
       Ok(())
     }

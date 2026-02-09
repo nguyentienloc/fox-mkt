@@ -33,7 +33,11 @@ export interface BrowserProfile {
   profile_url?: string;
   created_at?: number;
   odoo_proxy?: OdooProxy;
+  username?: string;
+  password?: string;
+  user_agent?: string;
   absolute_path?: string;
+  is_cloud_only?: boolean;
 }
 
 export type SyncStatus = "Disabled" | "Syncing" | "Synced" | "Error";

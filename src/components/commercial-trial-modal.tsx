@@ -57,9 +57,9 @@ export function CommercialTrialModal({
 
         <div className="space-y-4 py-4">
           <p className="text-sm text-muted-foreground">
-            If you are using Donut Browser for business purposes, you need to
-            purchase a commercial license to continue. You can still use it for
-            personal use for free.
+            If you are using Foxia for business purposes, you need to purchase a
+            commercial license to continue. You can still use it for personal
+            use for free.
           </p>
         </div>
 

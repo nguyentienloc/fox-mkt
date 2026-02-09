@@ -17,6 +17,7 @@ import { GroupManagementDialog } from "@/components/group-management-dialog";
 import HomeHeader from "@/components/home-header";
 import { OdooImportDialog } from "@/components/odoo-import-dialog";
 import { ProfilesDataTableVirtual } from "@/components/profile-data-table-virtual";
+import { ProfileDetailsDialog } from "@/components/profile-details-dialog";
 import { ProxyManagementDialog } from "@/components/proxy-management-dialog";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { ZsMktImportDialog } from "@/components/zsmkt-import-dialog";
@@ -26,12 +27,128 @@ import type { PermissionType } from "@/hooks/use-permissions";
 import { useProfileEvents } from "@/hooks/use-profile-events";
 import { useProxyEvents } from "@/hooks/use-proxy-events";
 import { useVersionUpdater } from "@/hooks/use-version-updater";
-import { showErrorToast, showSuccessToast, showToast } from "@/lib/toast-utils";
+import {
+  dismissToast,
+  showErrorToast,
+  showSuccessToast,
+  showToast,
+} from "@/lib/toast-utils";
 import { useAuth } from "@/providers/auth-provider";
 import type { BrowserProfile } from "@/types";
 
 export default function Home() {
   useVersionUpdater();
+  const [appVersion, setAppVersion] = useState<string>("");
+  const [appUpdateInfo, setAppUpdateInfo] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchVersion = async () => {
+      try {
+        const version = await invoke<string>("get_app_version");
+        setAppVersion(version);
+      } catch (error) {
+        console.error("Failed to fetch app version:", error);
+      }
+    };
+    void fetchVersion();
+  }, []);
+
+  const handleDownloadAppUpdate = useCallback(async () => {
+    if (!appUpdateInfo) return;
+
+    try {
+      showToast({
+        type: "loading",
+        title: "Đang tải bản cập nhật...",
+        description:
+          "Ứng dụng sẽ tự động cài đặt và khởi động lại sau khi hoàn tất.",
+        id: "app-update-download",
+        duration: Number.POSITIVE_INFINITY,
+      });
+
+      await invoke("download_and_prepare_app_update", {
+        updateInfo: appUpdateInfo,
+      });
+
+      // Sự kiện app-update-ready sẽ được bắn từ backend, nhưng chúng ta có thể gọi restart trực tiếp nếu cần
+      // Hoặc đợi người dùng xác nhận. Ở đây backend xử lý download -> install -> emit event.
+    } catch (error) {
+      console.error("Failed to download update:", error);
+      dismissToast("app-update-download");
+      showErrorToast("Lỗi khi tải bản cập nhật.");
+    }
+  }, [appUpdateInfo]);
+
+  const handleCheckAppUpdate = useCallback(
+    async (manual = true) => {
+      try {
+        if (manual) {
+          // Nếu có update rồi thì click vào menu này sẽ trigger download
+          if (appUpdateInfo) {
+            void handleDownloadAppUpdate();
+            return;
+          }
+
+          showToast({
+            type: "loading",
+            title: "Đang kiểm tra cập nhật...",
+            id: "app-update-check",
+          });
+        }
+
+        const update = await invoke<any>("check_for_app_updates");
+
+        if (manual) {
+          dismissToast("app-update-check");
+        }
+
+        if (update) {
+          setAppUpdateInfo(update);
+          if (manual) {
+            showSuccessToast(`Có bản cập nhật mới: ${update.new_version}`, {
+              description: "Nhấn vào biểu tượng cập nhật để cài đặt.",
+            });
+          }
+        } else if (manual) {
+          showSuccessToast("Ứng dụng đã ở phiên bản mới nhất.");
+        }
+      } catch (error) {
+        console.error("Failed to check for app updates:", error);
+        if (manual) {
+          dismissToast("app-update-check");
+          showErrorToast("Không thể kiểm tra cập nhật.");
+        }
+      }
+    },
+    [appUpdateInfo, handleDownloadAppUpdate],
+  );
+
+  useEffect(() => {
+    const unlisten = listen<string>("app-update-ready", (event) => {
+      dismissToast("app-update-download");
+      showToast({
+        type: "success",
+        title: "Cập nhật thành công!",
+        description: `Phiên bản ${event.payload} đã sẵn sàng. Nhấn để khởi động lại.`,
+        duration: Number.POSITIVE_INFINITY,
+        action: {
+          label: "Khởi động lại",
+          onClick: () => {
+            void invoke("restart_application");
+          },
+        },
+      });
+    });
+
+    return () => {
+      void unlisten.then((u) => u());
+    };
+  }, []);
+
+  // Check for updates on mount
+  useEffect(() => {
+    void handleCheckAppUpdate(false);
+  }, [handleCheckAppUpdate]);
   const {
     profiles,
     runningProfiles,
@@ -40,7 +157,7 @@ export default function Home() {
   const { groups: groupsData, isLoading: groupsLoading } = useGroupEvents();
   const { isLoading: proxiesLoading } = useProxyEvents();
   const { downloadBrowser } = useBrowserDownload();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isManager } = useAuth();
 
   const [odooProfiles, setOdooProfiles] = useState<any[]>([]);
   const loadOdooProfiles = useCallback(async () => {
@@ -205,16 +322,20 @@ export default function Home() {
         };
       } else {
         // Profile only on server (cloud-only)
-        // Detect browser from User Agent if possible
+        // Use browser from Odoo, fallback to detecting from User Agent
         let browser = "camoufox"; // Default
-        const ua = op.userAgent || "";
-        if (ua.toLowerCase().includes("firefox")) {
-          browser = "camoufox";
-        } else if (
-          ua.toLowerCase().includes("chrome") ||
-          ua.toLowerCase().includes("chromium")
-        ) {
-          browser = "wayfern";
+        if (typeof (op as any).browser === "string" && (op as any).browser) {
+          browser = (op as any).browser;
+        } else {
+          const ua = op.userAgent || "";
+          if (ua.toLowerCase().includes("firefox")) {
+            browser = "camoufox";
+          } else if (
+            ua.toLowerCase().includes("chrome") ||
+            ua.toLowerCase().includes("chromium")
+          ) {
+            browser = "wayfern";
+          }
         }
 
         return {
@@ -230,6 +351,14 @@ export default function Home() {
           odoo_proxy: op.proxy_ids?.[0],
           is_cloud_only: true,
           created_at,
+          username:
+            typeof (op as any).username === "string"
+              ? (op as any).username
+              : undefined,
+          password:
+            typeof (op as any).password === "string"
+              ? (op as any).password
+              : undefined,
         };
       }
     });
@@ -285,6 +414,8 @@ export default function Home() {
   const [_syncConfigDialogOpen, setSyncConfigDialogOpen] = useState(false);
   const [_profileSyncDialogOpen, _setProfileSyncDialogOpen] = useState(false);
   const [_currentProfileForSync, _setCurrentProfileForSync] =
+    useState<BrowserProfile | null>(null);
+  const [profileForDetails, setProfileForDetails] =
     useState<BrowserProfile | null>(null);
 
   const browserCounts = useMemo(() => {
@@ -363,11 +494,17 @@ export default function Home() {
     try {
       await invoke("launch_browser_profile", { profile });
     } catch (err: any) {
-      if (err.toString().includes("Browser app not found")) {
+      const errorStr = err.toString();
+      if (
+        errorStr.includes("Browser app not found") ||
+        errorStr.includes("Wayfern app not found") ||
+        errorStr.includes("No such file or directory") ||
+        errorStr.includes("Executable file not found")
+      ) {
         showToast({
           type: "error",
-          title: `Trình duyệt ${profile.browser} chưa được tải`,
-          description: "Vui lòng tải về.",
+          title: `Trình duyệt ${profile.browser} chưa được tải hoặc bị lỗi`,
+          description: "Vui lòng tải lại trình duyệt để tiếp tục.",
           action: {
             label: "Tải ngay",
             onClick: () =>
@@ -383,7 +520,12 @@ export default function Home() {
     try {
       // FIX: Lấy đúng Odoo ID thực sự, bỏ tiền tố "cloud-" nếu có
       const odooId = String(cp.odoo_id || cp.id).replace("cloud-", "");
-      console.log("Importing cloud profile:", cp.name, "odoo_id:", odooId);
+      console.log("=== DEBUG: Importing cloud profile ===");
+      console.log("Full cp object:", JSON.stringify(cp, null, 2));
+      console.log("browser:", cp.browser, "typeof:", typeof cp.browser);
+      console.log("username:", cp.username, "typeof:", typeof cp.username);
+      console.log("password:", cp.password, "typeof:", typeof cp.password);
+      console.log("odoo_id:", odooId);
 
       const existingProfile = profiles.find((p) => p.odoo_id === odooId);
 
@@ -430,6 +572,9 @@ export default function Home() {
         createdAt,
         localPath: cp.localPath || cp.local_path || "S3 Cloud", // Ghi rõ nguồn tải
         profileUrl: cp.profileUrl || cp.profile_url || undefined,
+        username: typeof cp.username === "string" ? cp.username : undefined,
+        password: typeof cp.password === "string" ? cp.password : undefined,
+        browser: typeof cp.browser === "string" ? cp.browser : undefined,
       };
       console.log("Calling import_zsmkt_profiles_batch with:", zs);
       await invoke("import_zsmkt_profiles_batch", { zsProfiles: [zs] });
@@ -507,6 +652,9 @@ export default function Home() {
               id: odooIdNum,
               name: profile.name,
               profileUrl: profileUrl,
+              username: profile.username || null,
+              password: profile.password || null,
+              browser: profile.browser || null,
             },
           });
           console.log("✅ Updated profile URL on Odoo server");
@@ -534,6 +682,9 @@ export default function Home() {
               profileUrl: profileUrl,
               userAgent: (profile as any).user_agent || "",
               localPath: `profiles/${slugify(profile.name)}`,
+              username: profile.username || null,
+              password: profile.password || null,
+              browser: profile.browser || null,
             },
           });
 
@@ -545,8 +696,11 @@ export default function Home() {
               odooId: newOdooId,
             });
           }
-        } catch (createErr) {
+        } catch (createErr: any) {
           console.error("Failed to create profile on Odoo server:", createErr);
+          toast.error(
+            `Không thể tạo profile trên Odoo: ${createErr?.message || createErr}`,
+          );
         }
       } else {
         // Không có odoo_id và không được tạo mới (ví dụ: khi dừng browser)
@@ -578,15 +732,16 @@ export default function Home() {
     <div className="grid items-center justify-items-center min-h-screen bg-background">
       <main className="flex flex-col items-center w-full max-w-[1300px] h-screen px-4 py-4">
         <HomeHeader
-          onCreateProfileDialogOpen={setCreateProfileDialogOpen}
           onGroupManagementDialogOpen={setGroupManagementDialogOpen}
-          onImportProfileDialogOpen={setImportProfileDialogOpen}
-          onZsmktImportDialogOpen={setZsmktImportDialogOpen}
+          _onImportProfileDialogOpen={setImportProfileDialogOpen}
+          _onZsmktImportDialogOpen={setZsmktImportDialogOpen}
           onOdooImportDialogOpen={setOdooImportDialogOpen}
-          onProxyManagementDialogOpen={setProxyManagementDialogOpen}
+          _onProxyManagementDialogOpen={setProxyManagementDialogOpen}
           onSettingsDialogOpen={setSettingsDialogOpen}
-          onSyncConfigDialogOpen={setSyncConfigDialogOpen}
-          onIntegrationsDialogOpen={setIntegrationsDialogOpen}
+          _onSyncConfigDialogOpen={setSyncConfigDialogOpen}
+          _onIntegrationsDialogOpen={setIntegrationsDialogOpen}
+          onCheckAppUpdate={handleCheckAppUpdate}
+          appUpdateInfo={appUpdateInfo}
           searchQuery={searchQuery}
           onSearchQueryChange={setSearchQuery}
         />
@@ -601,10 +756,15 @@ export default function Home() {
             selectedFilter={browserFilter}
             onFilterSelect={setBrowserFilter}
             counts={browserCounts}
+            onCreateProfile={
+              isManager ? () => setCreateProfileDialogOpen(true) : undefined
+            }
           />
           <div className="flex-1 min-h-0 mt-2">
             <ProfilesDataTableVirtual
               profiles={sortedProfiles as any}
+              appVersion={appVersion}
+              isManager={isManager}
               onLaunchProfile={launchProfile}
               onKillProfile={async (p) => {
                 try {
@@ -674,6 +834,7 @@ export default function Home() {
                 }
               }}
               onImportCloudProfile={handleImportCloudProfile}
+              onViewProfileDetails={(p) => setProfileForDetails(p)}
             />
           </div>
         </div>
@@ -732,6 +893,11 @@ export default function Home() {
       <ProxyManagementDialog
         isOpen={proxyManagementDialogOpen}
         onClose={() => setProxyManagementDialogOpen(false)}
+      />
+      <ProfileDetailsDialog
+        isOpen={profileForDetails !== null}
+        onClose={() => setProfileForDetails(null)}
+        profile={profileForDetails}
       />
     </div>
   );

@@ -100,6 +100,9 @@ export function OdooImportDialog({ isOpen, onClose }: OdooImportDialogProps) {
               }
             : undefined,
           createdAt: (p as any).createdAt || (p as any).create_date,
+          username: getString((p as any).username),
+          password: getString((p as any).password),
+          browser: getString((p as any).browser) || undefined,
         };
       });
 

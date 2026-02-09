@@ -7,7 +7,7 @@ static GUI_RUNNING: AtomicBool = AtomicBool::new(false);
 
 pub fn load_icon() -> Icon {
   // Use the generated template icon (44x44 for retina, macOS standard menu bar size)
-  // This is the donut logo converted to template format (black with alpha)
+  // This is the foxia logo converted to template format (black with alpha)
   let icon_bytes = include_bytes!("../../icons/tray-icon-44.png");
 
   let image = image::load_from_memory(icon_bytes)
@@ -40,7 +40,7 @@ impl TrayMenu {
   pub fn new() -> Self {
     let menu = Menu::new();
 
-    let open_item = MenuItem::new("Open Donut Browser", true, None);
+    let open_item = MenuItem::new("Open Foxia", true, None);
     let running_profiles_submenu = Submenu::new("Running Profiles", true);
     let no_profiles_item = MenuItem::new("No running profiles", false, None);
     running_profiles_submenu.append(&no_profiles_item).unwrap();
@@ -50,7 +50,7 @@ impl TrayMenu {
     let mcp_status_item = MenuItem::new("MCP: Starting...", false, None);
     let separator2 = PredefinedMenuItem::separator();
     let preferences_item = MenuItem::new("Preferences...", true, None);
-    let quit_item = MenuItem::new("Quit Donut Browser", true, None);
+    let quit_item = MenuItem::new("Quit Foxia", true, None);
 
     menu.append(&open_item).unwrap();
     menu.append(&running_profiles_submenu).unwrap();
@@ -93,7 +93,7 @@ impl TrayMenu {
 pub fn create_tray_icon(icon: Icon, menu: &Menu) -> TrayIcon {
   let builder = TrayIconBuilder::new()
     .with_icon(icon)
-    .with_tooltip("Donut Browser")
+    .with_tooltip("Foxia")
     .with_menu(Box::new(menu.clone()));
 
   // On macOS, template icons are automatically colored by the system for light/dark mode
@@ -114,7 +114,7 @@ pub fn open_gui() {
 
   #[cfg(target_os = "macos")]
   {
-    let _ = Command::new("open").arg("-a").arg("Donut Browser").spawn();
+    let _ = Command::new("open").arg("-a").arg("Foxia").spawn();
   }
 
   #[cfg(target_os = "windows")]
@@ -122,9 +122,9 @@ pub fn open_gui() {
     use std::path::PathBuf;
 
     let paths = [
-      dirs::data_local_dir().map(|p| p.join("Donut Browser").join("Donut Browser.exe")),
+      dirs::data_local_dir().map(|p| p.join("Foxia").join("Foxia.exe")),
       Some(PathBuf::from(
-        "C:\\Program Files\\Donut Browser\\Donut Browser.exe",
+        "C:\\Program Files\\Foxia\\Foxia.exe",
       )),
     ];
 
@@ -138,7 +138,7 @@ pub fn open_gui() {
 
   #[cfg(target_os = "linux")]
   {
-    let _ = Command::new("donutbrowser").spawn();
+    let _ = Command::new("foxia").spawn();
   }
 }
 
@@ -146,7 +146,7 @@ pub fn activate_gui() {
   #[cfg(target_os = "macos")]
   {
     let _ = Command::new("osascript")
-      .args(["-e", "tell application \"Donut Browser\" to activate"])
+      .args(["-e", "tell application \"Foxia\" to activate"])
       .spawn();
   }
 }

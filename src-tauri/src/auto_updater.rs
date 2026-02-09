@@ -525,6 +525,9 @@ mod tests {
       sync_enabled: false,
       odoo_proxy: None,
       absolute_path: None,
+      username: None,
+      password: None,
+      user_agent: None,
     }
   }
 
