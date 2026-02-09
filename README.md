@@ -75,6 +75,27 @@ Have questions or want to contribute? We'd love to hear from you!
                     <sub><b>locnguyen3103</b></sub>
                 </a>
             </td>
+            <td align="center">
+                <a href="https://github.com/zhom">
+                    <img src="https://avatars.githubusercontent.com/u/2717306?v=4" width="100;" alt="zhom"/>
+                    <br />
+                    <sub><b>zhom</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/HassiyYT">
+                    <img src="https://avatars.githubusercontent.com/u/81773493?v=4" width="100;" alt="HassiyYT"/>
+                    <br />
+                    <sub><b>Hassiy</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/JorySeverijnse">
+                    <img src="https://avatars.githubusercontent.com/u/117462355?v=4" width="100;" alt="JorySeverijnse"/>
+                    <br />
+                    <sub><b>Jory Severijnse</b></sub>
+                </a>
+            </td>
 		</tr>
 	<tbody>
 </table>
