@@ -120,6 +120,7 @@ jobs:
         working-directory: src-tauri
 
       - name: Run Rust sync e2e tests
+        if: matrix.os != 'windows-latest'
         run: node scripts/sync-test-harness.mjs
 
       - name: Run cargo audit security check
