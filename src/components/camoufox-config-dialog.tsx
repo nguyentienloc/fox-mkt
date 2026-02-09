@@ -158,14 +158,12 @@ export function CamoufoxConfigDialog({
               <WayfernConfigForm
                 config={config as WayfernConfig}
                 onConfigChange={updateConfig}
-                forceAdvanced={true}
                 readOnly={isRunning}
               />
             ) : (
               <SharedCamoufoxConfigForm
                 config={config as CamoufoxConfig}
                 onConfigChange={updateConfig}
-                forceAdvanced={true}
                 readOnly={isRunning}
                 browserType="camoufox"
               />

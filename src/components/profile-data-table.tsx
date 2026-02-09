@@ -911,28 +911,30 @@ export function ProfilesDataTable({
                               password: odooProxy.matkhau,
                             },
                           }
-                        : meta.storedProxies.find(
+                        : (meta.storedProxies.find(
                             (p) => p.id === profile.proxy_id,
-                          )!
+                          ) as any)
                     }
                     profileId={profile.id}
                     checkingProfileId={meta.checkingProfileId}
                     cachedResult={
                       meta.proxyCheckResults[
-                        odooProxy ? "temp-odoo" : profile.proxy_id!
+                        odooProxy ? "temp-odoo" : (profile.proxy_id ?? "")
                       ]
                     }
                     setCheckingProfileId={setCheckingProfileId}
                     onCheckComplete={(result) => {
                       setProxyCheckResults((prev) => ({
                         ...prev,
-                        [odooProxy ? "temp-odoo" : profile.proxy_id!]: result,
+                        [odooProxy ? "temp-odoo" : (profile.proxy_id ?? "")]:
+                          result,
                       }));
                     }}
                     onCheckFailed={(result) => {
                       setProxyCheckResults((prev) => ({
                         ...prev,
-                        [odooProxy ? "temp-odoo" : profile.proxy_id!]: result,
+                        [odooProxy ? "temp-odoo" : (profile.proxy_id ?? "")]:
+                          result,
                       }));
                     }}
                   />

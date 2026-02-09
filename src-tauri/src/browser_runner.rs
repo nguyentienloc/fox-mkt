@@ -93,10 +93,14 @@ impl BrowserRunner {
       res => {
         // Final fallback for Camoufox
         if profile.browser == "camoufox" {
-          if let Some(external_path) = crate::camoufox::external_binary::get_external_camoufox_path()
+          if let Some(external_path) =
+            crate::camoufox::external_binary::get_external_camoufox_path()
           {
             if external_path.exists() {
-              log::info!("Using fallback external Camoufox binary: {:?}", external_path);
+              log::info!(
+                "Using fallback external Camoufox binary: {:?}",
+                external_path
+              );
               return Ok(external_path);
             }
           }

@@ -100,9 +100,7 @@ impl SettingsManager {
   fn new() -> Self {
     Self {
       base_dirs: BaseDirs::new().expect("Failed to get base directories"),
-      data_dir_override: std::env::var("FOXIA_DATA_DIR")
-        .ok()
-        .map(PathBuf::from),
+      data_dir_override: std::env::var("FOXIA_DATA_DIR").ok().map(PathBuf::from),
     }
   }
 

@@ -766,7 +766,14 @@ pub fn update_profile_details(
   user_agent: Option<String>,
 ) -> Result<BrowserProfile, String> {
   ProfileManager::instance()
-    .update_profile_details(&app_handle, &profile_id, name, username, password, user_agent)
+    .update_profile_details(
+      &app_handle,
+      &profile_id,
+      name,
+      username,
+      password,
+      user_agent,
+    )
     .map_err(|e| e.to_string())
 }
 

@@ -1,5 +1,7 @@
+import Image from "next/image";
+
 export const Logo = (_props: React.SVGProps<SVGSVGElement>) => (
-  <img src="/mktv3.png" alt="" style={{ width: 80 }} />
+  <Image src="/mktv3.png" alt="" width={80} height={80} />
 );
 export const LogoOld = (props: React.SVGProps<SVGSVGElement>) => (
   <svg

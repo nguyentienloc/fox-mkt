@@ -326,7 +326,10 @@ impl CamoufoxManager {
 
     log::info!("Spawning Camoufox process...");
     let child = command.spawn().map_err(|e| {
-      let err_msg = format!("Failed to spawn Camoufox process at {:?}: {e}", executable_path);
+      let err_msg = format!(
+        "Failed to spawn Camoufox process at {:?}: {e}",
+        executable_path
+      );
       log::error!("{}", err_msg);
       err_msg
     })?;

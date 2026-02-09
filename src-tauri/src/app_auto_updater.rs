@@ -890,10 +890,7 @@ impl AppAutoUpdater {
       if let Some(parent_dir) = current_app_path.parent() {
         let old_app_path = parent_dir.join("Foxia.app");
         if old_app_path.exists() && old_app_path != current_app_path {
-          log::info!(
-            "Removing old 'Foxia.app' from: {}",
-            old_app_path.display()
-          );
+          log::info!("Removing old 'Foxia.app' from: {}", old_app_path.display());
           if let Err(e) = fs::remove_dir_all(&old_app_path) {
             log::warn!("Warning: Failed to remove old 'Foxia.app': {e}");
           } else {

@@ -123,9 +123,7 @@ pub fn open_gui() {
 
     let paths = [
       dirs::data_local_dir().map(|p| p.join("Foxia").join("Foxia.exe")),
-      Some(PathBuf::from(
-        "C:\\Program Files\\Foxia\\Foxia.exe",
-      )),
+      Some(PathBuf::from("C:\\Program Files\\Foxia\\Foxia.exe")),
     ];
 
     for path in paths.iter().flatten() {

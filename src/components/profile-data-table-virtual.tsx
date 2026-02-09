@@ -898,9 +898,9 @@ export function ProfilesDataTableVirtual({
                               password: odooProxy.matkhau,
                             },
                           }
-                        : meta.storedProxies.find(
+                        : (meta.storedProxies.find(
                             (p) => p.id === profile.proxy_id,
-                          )!
+                          ) as any)
                     }
                     profileId={profile.id}
                     checkingProfileId={meta.checkingProfileId}
