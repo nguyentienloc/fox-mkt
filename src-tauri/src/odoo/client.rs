@@ -227,14 +227,43 @@ impl OdooClient {
         }
     });
 
+    log::info!("Odoo delete_profile request to: {}, body: {}", url, body);
+
     let response = self.client.post(&url).json(&body).send().await?;
+    let status = response.status();
+    let text = response.text().await?;
 
-    let res: OdooResponse<bool> = response.json().await?;
+    log::info!("Odoo delete_profile response status: {}, body: {}", status, text);
 
-    if let Some(error) = res.error {
-      return Err(format!("Odoo delete profile failed: {}", error.message).into());
+    // Odoo có thể trả response không đúng format OdooResponse<bool>
+    match serde_json::from_str::<OdooResponse<bool>>(&text) {
+      Ok(res) => {
+        if let Some(error) = res.error {
+          return Err(format!("Odoo delete profile failed: {}", error.message).into());
+        }
+        Ok(res.result.unwrap_or(false))
+      }
+      Err(e) => {
+        log::warn!("Could not parse delete response as OdooResponse<bool>: {}. Trying OdooResponse<Value>...", e);
+        // Fallback: thử parse dạng khác, nếu status OK thì coi như thành công
+        match serde_json::from_str::<OdooResponse<serde_json::Value>>(&text) {
+          Ok(res) => {
+            if let Some(error) = res.error {
+              return Err(format!("Odoo delete profile failed: {}", error.message).into());
+            }
+            log::info!("Delete profile succeeded (parsed as Value): {:?}", res.result);
+            Ok(true)
+          }
+          Err(_) => {
+            if status.is_success() {
+              log::warn!("Could not parse response but HTTP status is OK, assuming success");
+              Ok(true)
+            } else {
+              Err(format!("Failed to parse Odoo delete response: {}. Body: {}", e, text).into())
+            }
+          }
+        }
+      }
     }
-
-    Ok(res.result.unwrap_or(false))
   }
 }

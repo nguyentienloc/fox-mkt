@@ -87,6 +87,7 @@ interface ProfilesDataTableProps {
   onPageChange?: (page: number) => void;
   pageSize?: number;
   onPageSizeChange?: (size: number) => void;
+  isManager?: boolean;
 }
 
 interface TableMeta {
@@ -171,6 +172,7 @@ export function ProfilesDataTable({
   onPageChange,
   pageSize = 50,
   onPageSizeChange,
+  isManager = false,
 }: ProfilesDataTableProps) {
   const { updateSorting } = useTableSorting();
 
@@ -526,6 +528,7 @@ export function ProfilesDataTable({
       onImportCloudProfile,
       uploadingProfiles,
       onViewProfileDetails,
+      isManager,
     }),
     [
       selectedProfiles,
@@ -561,6 +564,7 @@ export function ProfilesDataTable({
       handleIconClick,
       uploadingProfiles,
       onViewProfileDetails,
+      isManager,
     ],
   );
 
@@ -1018,12 +1022,14 @@ export function ProfilesDataTable({
                     Nhập Profile về máy
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => meta.setProfileToDelete(profile)}
-                >
-                  Xóa
-                </DropdownMenuItem>
+                {meta.isManager && (
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => meta.setProfileToDelete(profile)}
+                  >
+                    Xóa
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           );
@@ -1125,7 +1131,10 @@ export function ProfilesDataTable({
         description={`Bạn có chắc chắn muốn xóa profile "${profileToDelete?.name}"?`}
         confirmButtonText="Xóa ngay"
         isLoading={isDeleting}
-        isSynced={!!(profileToDelete?.odoo_id || profileToDelete?.profile_url)}
+        isSynced={
+          isManager &&
+          !!(profileToDelete?.odoo_id || profileToDelete?.profile_url)
+        }
       />
     </div>
   );

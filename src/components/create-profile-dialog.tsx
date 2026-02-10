@@ -708,6 +708,30 @@ export function CreateProfileDialog({
                             )}
                             {!isLoadingReleaseTypes &&
                               !releaseTypesError &&
+                              !getBestAvailableVersion("wayfern") && (
+                                <div className="flex gap-3 items-center p-3 rounded-md border border-yellow-500/50 bg-yellow-500/10">
+                                  <p className="flex-1 text-sm text-yellow-700 dark:text-yellow-400">
+                                    Wayfern is not yet available on{" "}
+                                    {getCurrentOS() === "windows"
+                                      ? "Windows"
+                                      : getCurrentOS() === "macos"
+                                        ? "macOS"
+                                        : "this platform"}
+                                    . Please use Camoufox instead.
+                                  </p>
+                                  <RippleButton
+                                    onClick={() =>
+                                      setSelectedBrowser("camoufox")
+                                    }
+                                    size="sm"
+                                    variant="outline"
+                                  >
+                                    Switch to Camoufox
+                                  </RippleButton>
+                                </div>
+                              )}
+                            {!isLoadingReleaseTypes &&
+                              !releaseTypesError &&
                               !isBrowserCurrentlyDownloading("wayfern") &&
                               !isBrowserVersionAvailable("wayfern") &&
                               getBestAvailableVersion("wayfern") && (

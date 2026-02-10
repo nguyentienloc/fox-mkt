@@ -322,10 +322,13 @@ export default function Home() {
         };
       } else {
         // Profile only on server (cloud-only)
-        // Use browser from Odoo, fallback to detecting from User Agent
-        let browser = "camoufox"; // Default
-        if (typeof (op as any).browser === "string" && (op as any).browser) {
-          browser = (op as any).browser;
+        // false/null → camoufox, string → dùng trực tiếp, còn lại fallback UA
+        const rawBrowser = (op as any).browser;
+        let browser = "camoufox";
+        if (typeof rawBrowser === "string" && rawBrowser) {
+          browser = rawBrowser;
+        } else if (rawBrowser === false || rawBrowser == null) {
+          browser = "camoufox";
         } else {
           const ua = op.userAgent || "";
           if (ua.toLowerCase().includes("firefox")) {
@@ -790,7 +793,9 @@ export default function Home() {
                 }
               }}
               onDeleteProfile={async (p, deleteFromServer) => {
-                // Nếu user chọn xóa cả server và profile có odoo_id
+                const isCloudOnly = String(p.id).startsWith("cloud-");
+
+                // Xóa trên server nếu user chọn và profile có odoo_id
                 if (deleteFromServer && p.odoo_id && p.odoo_id !== "null") {
                   try {
                     const odooIdNum = Number.parseInt(p.odoo_id, 10);
@@ -802,10 +807,26 @@ export default function Home() {
                   } catch (err) {
                     console.error("❌ Failed to delete from Odoo server:", err);
                     showErrorToast(`Lỗi xóa trên server: ${err}`);
+                    return;
                   }
                 }
-                // Xóa local
-                await invoke("delete_profile", { profileId: p.id });
+
+                // Xóa local (chỉ khi profile có data local, cloud-only thì bỏ qua)
+                if (!isCloudOnly) {
+                  try {
+                    await invoke("delete_profile", { profileId: p.id });
+                    console.log("✅ Deleted local profile");
+                  } catch (err) {
+                    console.error("❌ Failed to delete local profile:", err);
+                    showErrorToast(`Lỗi xóa profile local: ${err}`);
+                    return;
+                  }
+                }
+
+                // Reload Odoo profiles để cập nhật danh sách merged
+                if (deleteFromServer || isCloudOnly) {
+                  await loadOdooProfiles();
+                }
               }}
               onRenameProfile={(id, newName) =>
                 invoke("rename_profile", { profileId: id, newName })
@@ -816,9 +837,17 @@ export default function Home() {
               }}
               runningProfiles={runningProfiles}
               isUpdating={(_) => false}
-              onDeleteSelectedProfiles={(ids) =>
-                invoke("delete_selected_profiles", { profileIds: ids })
-              }
+              onDeleteSelectedProfiles={async (ids) => {
+                const localIds = ids.filter((id) => !id.startsWith("cloud-"));
+                if (localIds.length > 0) {
+                  await invoke("delete_selected_profiles", {
+                    profileIds: localIds,
+                  });
+                }
+                if (localIds.length < ids.length) {
+                  await loadOdooProfiles();
+                }
+              }}
               onAssignProfilesToGroup={(ids) => {
                 setSelectedProfilesForGroup(ids);
                 setGroupAssignmentDialogOpen(true);
@@ -868,9 +897,17 @@ export default function Home() {
       <DeleteConfirmationDialog
         isOpen={showBulkDeleteConfirmation}
         onClose={() => setShowBulkDeleteConfirmation(false)}
-        onConfirm={() =>
-          invoke("delete_selected_profiles", { profileIds: selectedProfiles })
-        }
+        onConfirm={async () => {
+          const localIds = selectedProfiles.filter(
+            (id) => !id.startsWith("cloud-"),
+          );
+          if (localIds.length > 0) {
+            await invoke("delete_selected_profiles", { profileIds: localIds });
+          }
+          if (localIds.length < selectedProfiles.length) {
+            await loadOdooProfiles();
+          }
+        }}
         title="Xóa Profile"
         description="Xóa các profile đã chọn?"
         confirmButtonText="Xóa"

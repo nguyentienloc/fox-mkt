@@ -1,0 +1,2 @@
+- Trình duyệt mặc định khi `browser: false` phải là `camoufox`, không phải `wayfen`.
+- Lỗi hiển thị ngay ở danh sách profile.

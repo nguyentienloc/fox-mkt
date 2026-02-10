@@ -1,0 +1,12 @@
+# donutbrowser Project
+- **Purpose**: A browser management application (MKT browser).
+- **Tech Stack**:
+  - Frontend: Next.js (React), TailwindCSS, TanStack Table, Lucide icons.
+  - Backend: Rust (Tauri).
+  - Sync Library: `foxia-sync` (internal).
+- **Commands**:
+  - Dev: `pnpm dev`
+  - Build: `pnpm build`
+  - Lint: `pnpm lint`
+  - Format: `pnpm format`
+  - Test: `pnpm test`

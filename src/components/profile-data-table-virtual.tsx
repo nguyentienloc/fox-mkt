@@ -1165,7 +1165,10 @@ export function ProfilesDataTableVirtual({
         description={`Bạn có chắc chắn muốn xóa profile "${profileToDelete?.name}"?`}
         confirmButtonText="Xóa ngay"
         isLoading={isDeleting}
-        isSynced={!!(profileToDelete?.odoo_id || profileToDelete?.profile_url)}
+        isSynced={
+          isManager &&
+          !!(profileToDelete?.odoo_id || profileToDelete?.profile_url)
+        }
       />
     </div>
   );
