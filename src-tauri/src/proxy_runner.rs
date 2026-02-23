@@ -23,12 +23,10 @@ pub async fn start_proxy_process_with_profile(
   let id = generate_proxy_id();
   let upstream = upstream_url.unwrap_or_else(|| "DIRECT".to_string());
 
-  // Get available port if not specified
-  let local_port = port.unwrap_or_else(|| {
-    // Find an available port
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    listener.local_addr().unwrap().port()
-  });
+  // Dùng port=0 để process con tự bind vào port available
+  // Tránh race condition: pre-allocate rồi drop listener có thể fail trên Windows
+  // khi OS chưa release port kịp trước khi process con bind lại
+  let local_port = port.unwrap_or(0);
 
   let config =
     ProxyConfig::new(id.clone(), upstream, Some(local_port)).with_profile_id(profile_id.clone());
@@ -120,7 +118,15 @@ pub async fn start_proxy_process_with_profile(
 
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::null());
-    cmd.stderr(Stdio::null());
+
+    // Log stderr ra file để debug (quan trọng trên Windows vì không có terminal)
+    let log_path = std::env::temp_dir().join(format!("foxia-proxy-{}.log", id));
+    if let Ok(file) = std::fs::File::create(&log_path) {
+      log::info!("Proxy worker stderr will be logged to: {:?}", log_path);
+      cmd.stderr(Stdio::from(file));
+    } else {
+      cmd.stderr(Stdio::null());
+    }
 
     // On Windows, use CREATE_NEW_PROCESS_GROUP flag for proper detachment
     const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
@@ -152,36 +158,42 @@ pub async fn start_proxy_process_with_profile(
   }
 
   // Give the process a moment to start up before checking
+  // Windows cần nhiều thời gian hơn do overhead process creation và antivirus scan
+  #[cfg(windows)]
+  tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+  #[cfg(not(windows))]
   tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-  // Wait for the worker to bind to the port and update config
-  // Since we pre-allocated the port, the worker should bind immediately
-  // We check quickly with short intervals to make startup fast
+  // Wait for the worker to bind và update config với local_url
   let mut attempts = 0;
-  let max_attempts = 40; // 4 seconds max (40 * 100ms) - give it more time to start
+  // Windows cần timeout dài hơn (15s) để handle slow startup
+  #[cfg(windows)]
+  let max_attempts = 150;
+  #[cfg(not(windows))]
+  let max_attempts = 80; // 8s cho unix
 
   loop {
     // Use shorter sleep for faster startup
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
     if let Some(updated_config) = get_proxy_config(&id) {
-      // Check if local_url is set (worker has bound and updated config)
+      // Check if local_url is set (worker đã bind port và update config)
       if let Some(ref local_url) = updated_config.local_url {
         if !local_url.is_empty() {
           if let Some(port) = updated_config.local_port {
-            // Try to connect immediately - port should be ready since we pre-allocated it
+            // Verify port thực sự đang listen
             match tokio::time::timeout(
-              tokio::time::Duration::from_millis(100),
+              tokio::time::Duration::from_millis(200),
               tokio::net::TcpStream::connect(("127.0.0.1", port)),
             )
             .await
             {
               Ok(Ok(_stream)) => {
-                // Port is listening and accepting connections!
+                // Port đang listen và chấp nhận kết nối
                 return Ok(updated_config);
               }
               Ok(Err(_)) | Err(_) => {
-                // Port not ready yet, continue waiting
+                // Port chưa ready, tiếp tục chờ
               }
             }
           }
