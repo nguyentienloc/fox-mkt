@@ -146,6 +146,7 @@ interface TableMeta {
   onImportCloudProfile?: (profile: any) => Promise<void>;
   uploadingProfiles: Set<string>;
   onViewProfileDetails?: (profile: BrowserProfile) => void;
+  isManager?: boolean;
 }
 
 export function ProfilesDataTable({
