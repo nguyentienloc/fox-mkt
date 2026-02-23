@@ -233,7 +233,11 @@ impl OdooClient {
     let status = response.status();
     let text = response.text().await?;
 
-    log::info!("Odoo delete_profile response status: {}, body: {}", status, text);
+    log::info!(
+      "Odoo delete_profile response status: {}, body: {}",
+      status,
+      text
+    );
 
     // Odoo có thể trả response không đúng format OdooResponse<bool>
     match serde_json::from_str::<OdooResponse<bool>>(&text) {
@@ -251,7 +255,10 @@ impl OdooClient {
             if let Some(error) = res.error {
               return Err(format!("Odoo delete profile failed: {}", error.message).into());
             }
-            log::info!("Delete profile succeeded (parsed as Value): {:?}", res.result);
+            log::info!(
+              "Delete profile succeeded (parsed as Value): {:?}",
+              res.result
+            );
             Ok(true)
           }
           Err(_) => {
@@ -259,7 +266,13 @@ impl OdooClient {
               log::warn!("Could not parse response but HTTP status is OK, assuming success");
               Ok(true)
             } else {
-              Err(format!("Failed to parse Odoo delete response: {}. Body: {}", e, text).into())
+              Err(
+                format!(
+                  "Failed to parse Odoo delete response: {}. Body: {}",
+                  e, text
+                )
+                .into(),
+              )
             }
           }
         }
