@@ -128,9 +128,16 @@ pub async fn start_proxy_process_with_profile(
       cmd.stderr(Stdio::null());
     }
 
-    // On Windows, use CREATE_NEW_PROCESS_GROUP flag for proper detachment
+    // DETACHED_PROCESS: ngắt kế thừa stdout/stdin console handles từ parent
+    // Quan trọng: sidecar foxia-proxy chạy bởi Tauri có stdout được pipe để đọc JSON output.
+    // Nếu child kế thừa stdout pipe đó, Tauri sẽ block đợi EOF mãi mãi (deadlock).
+    // DETACHED_PROCESS giải quyết vấn đề này bằng cách không kế thừa console của parent.
+    // CREATE_NEW_PROCESS_GROUP: tạo process group riêng để process sống độc lập khi parent exit.
+    // CREATE_NO_WINDOW: không mở console window visible trên Windows.
+    const DETACHED_PROCESS: u32 = 0x00000008;
     const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
-    cmd.creation_flags(CREATE_NEW_PROCESS_GROUP);
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
 
     let child = cmd.spawn()?;
     let pid = child.id();
