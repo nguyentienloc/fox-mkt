@@ -42,6 +42,8 @@ pub async fn start_proxy_process_with_profile(
   // Spawn proxy worker process in the background using std::process::Command
   // This ensures proper process detachment on Unix systems
   let exe = std::env::current_exe()?;
+  log::info!("Starting proxy worker from binary: {:?}", exe);
+
 
   #[cfg(unix)]
   {
@@ -214,10 +216,29 @@ pub async fn start_proxy_process_with_profile(
       if let Some(config) = get_proxy_config(&id) {
         // Check if process is still running
         let process_running = config.pid.map(is_process_running).unwrap_or(false);
+
+        // Try to read the last few lines of the log file for diagnostics
+        #[cfg(windows)]
+        let log_path = std::env::temp_dir().join(format!("foxia-proxy-{}.log", id));
+        #[cfg(not(windows))]
+        let log_path = std::path::PathBuf::from("/tmp").join(format!("foxia-proxy-{}.log", id));
+
+        let log_content = if log_path.exists() {
+          std::fs::read_to_string(&log_path)
+            .map(|s| {
+              let lines: Vec<&str> = s.lines().collect();
+              let last_lines = lines.iter().rev().take(10).rev().cloned().collect::<Vec<&str>>();
+              format!("\n--- Last 10 lines of worker log ---\n{}\n--- End of log ---", last_lines.join("\n"))
+            })
+            .unwrap_or_else(|e| format!(" (failed to read log file: {})", e))
+        } else {
+          format!(" (log file not found at {:?})", log_path)
+        };
+
         return Err(
           format!(
-            "Proxy worker failed to start in time. Config: id={}, local_url={:?}, local_port={:?}, pid={:?}, process_running={}",
-            config.id, config.local_url, config.local_port, config.pid, process_running
+            "Proxy worker failed to start in time after {} attempts. Config: id={}, local_url={:?}, local_port={:?}, pid={:?}, process_running={}{}",
+            attempts, config.id, config.local_url, config.local_port, config.pid, process_running, log_content
           )
           .into(),
         );

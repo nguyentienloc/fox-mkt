@@ -1114,8 +1114,8 @@ impl ProxyManager {
       }
       if !ready {
         return Err(format!(
-          "Local proxy on 127.0.0.1:{} did not become ready in time",
-          proxy_info.local_port
+          "Local proxy (ID: {}) on {} (port: {}) did not become ready in time after 50 attempts",
+          proxy_info.id, proxy_info.local_url, proxy_info.local_port
         ));
       }
     }
