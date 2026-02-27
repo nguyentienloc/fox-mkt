@@ -44,7 +44,6 @@ pub async fn start_proxy_process_with_profile(
   let exe = std::env::current_exe()?;
   log::info!("Starting proxy worker from binary: {:?}", exe);
 
-
   #[cfg(unix)]
   {
     use std::os::unix::process::CommandExt;
@@ -227,8 +226,17 @@ pub async fn start_proxy_process_with_profile(
           std::fs::read_to_string(&log_path)
             .map(|s| {
               let lines: Vec<&str> = s.lines().collect();
-              let last_lines = lines.iter().rev().take(10).rev().cloned().collect::<Vec<&str>>();
-              format!("\n--- Last 10 lines of worker log ---\n{}\n--- End of log ---", last_lines.join("\n"))
+              let last_lines = lines
+                .iter()
+                .rev()
+                .take(10)
+                .rev()
+                .cloned()
+                .collect::<Vec<&str>>();
+              format!(
+                "\n--- Last 10 lines of worker log ---\n{}\n--- End of log ---",
+                last_lines.join("\n")
+              )
             })
             .unwrap_or_else(|e| format!(" (failed to read log file: {})", e))
         } else {
