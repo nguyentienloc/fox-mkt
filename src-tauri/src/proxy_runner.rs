@@ -28,8 +28,8 @@ pub async fn start_proxy_process_with_profile(
   // Tránh race condition: pre-allocate rồi drop listener có thể fail trên Windows
   // khi OS chưa release port kịp trước khi process con bind lại
 
-  let config = ProxyConfig::new(id.clone(), upstream, port)
-    .with_profile_id(profile_id.map(|s| s.to_string()));
+  let config =
+    ProxyConfig::new(id.clone(), upstream, port).with_profile_id(profile_id.map(|s| s.to_string()));
   save_proxy_config(&config)?;
 
   // Log profile_id for debugging
@@ -140,7 +140,10 @@ pub async fn start_proxy_process_with_profile(
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
 
-    log::info!("Spawning proxy-worker process with ID: {} and action: start", id);
+    log::info!(
+      "Spawning proxy-worker process with ID: {} and action: start",
+      id
+    );
     let child = cmd.spawn()?;
     let pid = child.id();
     log::info!("Proxy-worker process spawned with PID: {}", pid);

@@ -1052,16 +1052,25 @@ impl ProxyManager {
     // Execute the command and wait for it to complete with a timeout
     // The foxia-proxy binary should start the worker and then exit within 15s (Windows max attempts)
     use tokio::time::{timeout, Duration};
-    log::info!("Executing sidecar foxia-proxy for ID: {}...", profile_id.unwrap_or("unknown"));
+    log::info!(
+      "Executing sidecar foxia-proxy for ID: {}...",
+      profile_id.unwrap_or("unknown")
+    );
     let output = timeout(Duration::from_secs(25), proxy_cmd.output())
       .await
       .map_err(|_| {
-        log::error!("Proxy sidecar (ID: {}) timed out after 25 seconds", profile_id.unwrap_or("unknown"));
+        log::error!(
+          "Proxy sidecar (ID: {}) timed out after 25 seconds",
+          profile_id.unwrap_or("unknown")
+        );
         "Proxy sidecar timed out after 25 seconds".to_string()
       })?
       .map_err(|e| format!("Failed to execute foxia-proxy: {e}"))?;
 
-    log::info!("Sidecar foxia-proxy finished successfully for ID: {}", profile_id.unwrap_or("unknown"));
+    log::info!(
+      "Sidecar foxia-proxy finished successfully for ID: {}",
+      profile_id.unwrap_or("unknown")
+    );
 
     if !output.status.success() {
       let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1080,8 +1089,11 @@ impl ProxyManager {
 
     // Extract proxy ID - the other fields might be null since we didn't wait in sidecar
     let id = json["id"].as_str().ok_or("Missing proxy ID")?;
-    
-    log::info!("Sidecar launched worker. Waiting for proxy (ID: {}) to become ready...", id);
+
+    log::info!(
+      "Sidecar launched worker. Waiting for proxy (ID: {}) to become ready...",
+      id
+    );
 
     // Call our new public wait function from proxy_runner
     let final_config = crate::proxy_runner::wait_for_proxy_port(id.to_string())
@@ -1089,8 +1101,8 @@ impl ProxyManager {
       .map_err(|e| format!("Proxy worker failed to bind port: {e}"))?;
 
     log::info!(
-      "Proxy (ID: {}) is now ready on port {}", 
-      id, 
+      "Proxy (ID: {}) is now ready on port {}",
+      id,
       final_config.local_port.unwrap_or(0)
     );
 
