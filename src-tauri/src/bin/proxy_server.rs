@@ -82,6 +82,23 @@ fn build_proxy_url(
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() {
+  // Debug trace to file to verify sidecar starts on Windows
+  let debug_log = std::env::temp_dir().join("foxia-sidecar-debug.log");
+  if let Ok(mut file) = std::fs::OpenOptions::new()
+    .create(true)
+    .append(true)
+    .open(&debug_log)
+  {
+    use std::io::Write;
+    let _ = writeln!(
+      file,
+      "[{:?}] Sidecar started with PID: {}, args: {:?}",
+      chrono::Utc::now(),
+      std::process::id(),
+      std::env::args().collect::<Vec<_>>()
+    );
+  }
+
   // Initialize logger to write to stderr (which will be redirected to file)
   env_logger::Builder::from_default_env()
     .filter_level(log::LevelFilter::Debug)

@@ -7,6 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 
 use crate::browser::ProxySettings;
@@ -1049,39 +1050,77 @@ impl ProxyManager {
       proxy_cmd = proxy_cmd.arg("--profile-id").arg(id);
     }
 
-    // Execute the command and wait for it to complete with a timeout
-    // The foxia-proxy binary should start the worker and then exit within 15s (Windows max attempts)
+    // Execute the command using spawn to handle stdout/stderr in real-time
+    // and avoid pipe deadlocks on Windows
     use tokio::time::{timeout, Duration};
     log::info!(
       "Executing sidecar foxia-proxy for ID: {}...",
       profile_id.unwrap_or("unknown")
     );
-    let output = timeout(Duration::from_secs(25), proxy_cmd.output())
-      .await
-      .map_err(|_| {
-        log::error!(
-          "Proxy sidecar (ID: {}) timed out after 25 seconds",
-          profile_id.unwrap_or("unknown")
-        );
-        "Proxy sidecar timed out after 25 seconds".to_string()
-      })?
-      .map_err(|e| format!("Failed to execute foxia-proxy: {e}"))?;
 
-    log::info!(
-      "Sidecar foxia-proxy finished successfully for ID: {}",
-      profile_id.unwrap_or("unknown")
-    );
+    let (mut rx, _child) = proxy_cmd
+      .spawn()
+      .map_err(|e| format!("Failed to spawn foxia-proxy: {e}"))?;
 
-    if !output.status.success() {
-      let stderr = String::from_utf8_lossy(&output.stderr);
-      let stdout = String::from_utf8_lossy(&output.stdout);
-      return Err(format!(
-        "Proxy start failed - stdout: {stdout}, stderr: {stderr}"
-      ));
+    let mut stdout_captured = String::new();
+    let mut sidecar_error = None;
+
+    // Timeout for the entire sidecar execution (30s)
+    let profile_id_str = profile_id.unwrap_or("unknown").to_string();
+    let timeout_fut = timeout(Duration::from_secs(30), async {
+      while let Some(event) = rx.recv().await {
+        match event {
+          CommandEvent::Stdout(line) => {
+            let text = String::from_utf8_lossy(&line).trim().to_string();
+            if !text.is_empty() {
+              log::info!("[Sidecar STDOUT] {}", text);
+              // Only capture JSON-like output (starts with {)
+              if text.starts_with('{') {
+                stdout_captured.push_str(&text);
+              }
+            }
+          }
+          CommandEvent::Stderr(line) => {
+            let text = String::from_utf8_lossy(&line).trim().to_string();
+            if !text.is_empty() {
+              log::warn!("[Sidecar STDERR] {}", text);
+            }
+          }
+          CommandEvent::Terminated(payload) => {
+            log::info!("[Sidecar] Terminated with code {:?}", payload.code);
+            if payload.code != Some(0) && payload.code.is_some() {
+              sidecar_error = Some(format!(
+                "Sidecar exited with non-zero code: {:?}",
+                payload.code
+              ));
+            }
+            break;
+          }
+          _ => {}
+        }
+      }
+    });
+
+    if let Err(_) = timeout_fut.await {
+      log::error!(
+        "Proxy sidecar (ID: {}) timed out after 30 seconds",
+        profile_id_str
+      );
+      return Err("Proxy sidecar timed out after 30 seconds".to_string());
     }
 
-    let json_string =
-      String::from_utf8(output.stdout).map_err(|e| format!("Failed to parse proxy output: {e}"))?;
+    if let Some(err) = sidecar_error {
+      log::error!("Proxy sidecar error: {}", err);
+      return Err(err);
+    }
+
+    log::info!("Sidecar foxia-proxy finished for ID: {}", profile_id_str);
+
+    let json_string = if stdout_captured.is_empty() {
+      return Err("Proxy sidecar produced no JSON output".to_string());
+    } else {
+      stdout_captured
+    };
 
     // Parse the JSON output
     let json: Value = serde_json::from_str(json_string.trim())

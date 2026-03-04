@@ -148,14 +148,6 @@ pub async fn start_proxy_process_with_profile(
     let pid = child.id();
     log::info!("Proxy-worker process spawned with PID: {}", pid);
 
-    // Set high priority so the proxy is killed last under resource pressure
-    unsafe {
-      if let Ok(handle) = OpenProcess(PROCESS_SET_INFORMATION, false, pid) {
-        let _ = SetPriorityClass(handle, ABOVE_NORMAL_PRIORITY_CLASS);
-        let _ = CloseHandle(handle);
-      }
-    }
-
     // Store PID
     {
       let mut processes = PROXY_PROCESSES.lock().unwrap();
