@@ -1049,12 +1049,19 @@ impl ProxyManager {
       proxy_cmd = proxy_cmd.arg("--profile-id").arg(id);
     }
 
-    // Execute the command and wait for it to complete
-    // The foxia-proxy binary should start the worker and then exit
-    let output = proxy_cmd
-      .output()
+    // Execute the command and wait for it to complete with a timeout
+    // The foxia-proxy binary should start the worker and then exit within 15s (Windows max attempts)
+    use tokio::time::{timeout, Duration};
+    log::info!("Executing sidecar foxia-proxy for ID: {}...", profile_id.unwrap_or("unknown"));
+    let output = timeout(Duration::from_secs(25), proxy_cmd.output())
       .await
+      .map_err(|_| {
+        log::error!("Proxy sidecar (ID: {}) timed out after 25 seconds", profile_id.unwrap_or("unknown"));
+        "Proxy sidecar timed out after 25 seconds".to_string()
+      })?
       .map_err(|e| format!("Failed to execute foxia-proxy: {e}"))?;
+
+    log::info!("Sidecar foxia-proxy finished successfully for ID: {}", profile_id.unwrap_or("unknown"));
 
     if !output.status.success() {
       let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1071,20 +1078,25 @@ impl ProxyManager {
     let json: Value = serde_json::from_str(json_string.trim())
       .map_err(|e| format!("Failed to parse JSON: {e}. Output was: {}", json_string))?;
 
-    // Extract proxy information
+    // Extract proxy ID - the other fields might be null since we didn't wait in sidecar
     let id = json["id"].as_str().ok_or("Missing proxy ID")?;
-    let local_port = json["localPort"]
-      .as_u64()
-      .ok_or_else(|| format!("Missing local port in JSON: {}", json_string))?
-      as u16;
-    let local_url = json["localUrl"]
-      .as_str()
-      .ok_or_else(|| format!("Missing local URL in JSON: {}", json_string))?
-      .to_string();
+    
+    log::info!("Sidecar launched worker. Waiting for proxy (ID: {}) to become ready...", id);
+
+    // Call our new public wait function from proxy_runner
+    let final_config = crate::proxy_runner::wait_for_proxy_port(id.to_string())
+      .await
+      .map_err(|e| format!("Proxy worker failed to bind port: {e}"))?;
+
+    log::info!(
+      "Proxy (ID: {}) is now ready on port {}", 
+      id, 
+      final_config.local_port.unwrap_or(0)
+    );
 
     let proxy_info = ProxyInfo {
       id: id.to_string(),
-      local_url,
+      local_url: final_config.local_url.unwrap_or_default(),
       upstream_host: proxy_settings
         .map(|p| p.host.clone())
         .unwrap_or_else(|| "DIRECT".to_string()),
@@ -1092,33 +1104,9 @@ impl ProxyManager {
       upstream_type: proxy_settings
         .map(|p| p.proxy_type.clone())
         .unwrap_or_else(|| "DIRECT".to_string()),
-      local_port,
+      local_port: final_config.local_port.unwrap_or(0),
       profile_id: profile_id.map(|s| s.to_string()),
     };
-
-    // Wait for the local proxy port to be ready to accept connections
-    {
-      use tokio::net::TcpStream;
-      use tokio::time::{sleep, Duration};
-      let mut ready = false;
-      for _ in 0..50 {
-        match TcpStream::connect((std::net::Ipv4Addr::LOCALHOST, proxy_info.local_port)).await {
-          Ok(_stream) => {
-            ready = true;
-            break;
-          }
-          Err(_) => {
-            sleep(Duration::from_millis(100)).await;
-          }
-        }
-      }
-      if !ready {
-        return Err(format!(
-          "Local proxy (ID: {}) on {} (port: {}) did not become ready in time after 50 attempts",
-          proxy_info.id, proxy_info.local_url, proxy_info.local_port
-        ));
-      }
-    }
 
     // Store the proxy info
     {

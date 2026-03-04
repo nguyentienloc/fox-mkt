@@ -12,13 +12,14 @@ pub async fn start_proxy_process(
   upstream_url: Option<String>,
   port: Option<u16>,
 ) -> Result<ProxyConfig, Box<dyn std::error::Error>> {
-  start_proxy_process_with_profile(upstream_url, port, None).await
+  start_proxy_process_with_profile(upstream_url, port, None, true).await
 }
 
 pub async fn start_proxy_process_with_profile(
   upstream_url: Option<String>,
   port: Option<u16>,
-  profile_id: Option<String>,
+  profile_id: Option<&str>,
+  wait: bool,
 ) -> Result<ProxyConfig, Box<dyn std::error::Error>> {
   let id = generate_proxy_id();
   let upstream = upstream_url.unwrap_or_else(|| "DIRECT".to_string());
@@ -26,10 +27,9 @@ pub async fn start_proxy_process_with_profile(
   // Dùng port=0 để process con tự bind vào port available
   // Tránh race condition: pre-allocate rồi drop listener có thể fail trên Windows
   // khi OS chưa release port kịp trước khi process con bind lại
-  let local_port = port.unwrap_or(0);
 
-  let config =
-    ProxyConfig::new(id.clone(), upstream, Some(local_port)).with_profile_id(profile_id.clone());
+  let config = ProxyConfig::new(id.clone(), upstream, port)
+    .with_profile_id(profile_id.map(|s| s.to_string()));
   save_proxy_config(&config)?;
 
   // Log profile_id for debugging
@@ -140,8 +140,10 @@ pub async fn start_proxy_process_with_profile(
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
 
+    log::info!("Spawning proxy-worker process with ID: {} and action: start", id);
     let child = cmd.spawn()?;
     let pid = child.id();
+    log::info!("Proxy-worker process spawned with PID: {}", pid);
 
     // Set high priority so the proxy is killed last under resource pressure
     unsafe {
@@ -161,10 +163,28 @@ pub async fn start_proxy_process_with_profile(
     let mut config_with_pid = config.clone();
     config_with_pid.pid = Some(pid);
     save_proxy_config(&config_with_pid)?;
-
     drop(child);
+
+    // Return initial config if we're not waiting
+    if !wait {
+      return Ok(config_with_pid);
+    }
   }
 
+  #[cfg(not(windows))]
+  {
+    if !wait {
+      // For unix, the config_with_pid is already saved and we have the ID to wait later
+      // But we need to retrieve it to return it
+      let config = get_proxy_config(&id).ok_or("Failed to retrieve saved config")?;
+      return Ok(config);
+    }
+  }
+
+  wait_for_proxy_port(id).await
+}
+
+pub async fn wait_for_proxy_port(id: String) -> Result<ProxyConfig, Box<dyn std::error::Error>> {
   // Give the process a moment to start up before checking
   // Windows cần nhiều thời gian hơn do overhead process creation và antivirus scan
   #[cfg(windows)]

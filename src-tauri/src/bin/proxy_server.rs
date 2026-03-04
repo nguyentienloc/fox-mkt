@@ -174,6 +174,9 @@ async fn main() {
     )
     .get_matches();
 
+  log::info!("Sidecar started with args: {:?}", matches);
+
+
   if let Some(proxy_matches) = matches.subcommand_matches("proxy") {
     if let Some(start_matches) = proxy_matches.subcommand_matches("start") {
       let mut upstream_url: Option<String> = None;
@@ -200,7 +203,7 @@ async fn main() {
       let port = start_matches.get_one::<u16>("port").copied();
       let profile_id = start_matches.get_one::<String>("profile-id").cloned();
 
-      match start_proxy_process_with_profile(upstream_url, port, profile_id).await {
+      match start_proxy_process_with_profile(upstream_url, port, profile_id.as_deref(), false).await {
         Ok(config) => {
           // Output the configuration as JSON for the Rust side to parse
           // Use println! here because this needs to go to stdout for parsing
