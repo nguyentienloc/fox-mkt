@@ -605,6 +605,49 @@ pub fn run() {
     pending.push(url.clone());
   }
 
+  // Intercept proxy-worker command early to bypass Tauri initialization and single-instance plugin
+  if args.len() >= 3 && args[1] == "proxy-worker" {
+    let id = args
+      .iter()
+      .position(|r| r == "--id")
+      .and_then(|pos| args.get(pos + 1))
+      .cloned();
+    let action = args.get(2).cloned();
+
+    if let (Some(id), Some(action)) = (id, action) {
+      if action == "start" {
+        // Use a dedicated tokio runtime for the worker
+        let rt = tokio::runtime::Builder::new_multi_thread()
+          .enable_all()
+          .build()
+          .unwrap();
+
+        rt.block_on(async move {
+          // Initialize a simple console logger for the worker since Tauri log plugin isn't active
+          env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+            .init();
+
+          log::info!(
+            "Proxy worker starting independently (bypassing Tauri) for ID: {}",
+            id
+          );
+
+          if let Some(config) = proxy_storage::get_proxy_config(&id) {
+            if let Err(e) = proxy_server::run_proxy_server(config).await {
+              log::error!("Proxy worker failed: {}", e);
+              std::process::exit(1);
+            }
+          } else {
+            log::error!("Proxy config not found: {}", id);
+            std::process::exit(1);
+          }
+        });
+        // Worker loop finished (should not happen normally) or failed to start
+        std::process::exit(0);
+      }
+    }
+  }
+
   // Configure logging plugin with separate logs for dev and production
   let log_file_name = if cfg!(debug_assertions) {
     "FoxiaDev"
