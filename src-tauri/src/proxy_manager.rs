@@ -1,13 +1,11 @@
 use chrono::Utc;
 use directories::BaseDirs;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 
 use crate::browser::ProxySettings;
@@ -926,7 +924,7 @@ impl ProxyManager {
   // If proxy_settings is None, starts a direct proxy for traffic monitoring
   pub async fn start_proxy(
     &self,
-    app_handle: tauri::AppHandle,
+    _app_handle: tauri::AppHandle,
     proxy_settings: Option<&ProxySettings>,
     browser_pid: u32,
     profile_id: Option<&str>,
@@ -1018,135 +1016,30 @@ impl ProxyManager {
       }
     }
 
-    // Start a new proxy using the foxia-proxy binary with the correct CLI interface
-    let mut proxy_cmd = app_handle
-      .shell()
-      .sidecar("foxia-proxy")
-      .map_err(|e| format!("Failed to create sidecar: {e}"))?
-      .arg("proxy")
-      .arg("start");
+    // Bypass Tauri sidecar entirely - call proxy_runner directly
+    // Tauri's sidecar event loop on Windows never fires Terminated events,
+    // causing deadlocks. Direct invocation avoids all pipe/handle issues.
+    let upstream_url = proxy_settings.map(|p| Self::build_proxy_url(p));
 
-    // Add upstream proxy settings if provided, otherwise create direct proxy
-    if let Some(proxy_settings) = proxy_settings {
-      proxy_cmd = proxy_cmd
-        .arg("--host")
-        .arg(&proxy_settings.host)
-        .arg("--proxy-port")
-        .arg(proxy_settings.port.to_string())
-        .arg("--type")
-        .arg(&proxy_settings.proxy_type);
-
-      // Add credentials if provided
-      if let Some(username) = &proxy_settings.username {
-        proxy_cmd = proxy_cmd.arg("--username").arg(username);
-      }
-      if let Some(password) = &proxy_settings.password {
-        proxy_cmd = proxy_cmd.arg("--password").arg(password);
-      }
-    }
-
-    // Add profile ID if provided for traffic tracking
-    if let Some(id) = profile_id {
-      proxy_cmd = proxy_cmd.arg("--profile-id").arg(id);
-    }
-
-    // Execute the command using spawn to handle stdout/stderr in real-time
-    // and avoid pipe deadlocks on Windows
-    use tokio::time::{timeout, Duration};
     log::info!(
-      "Executing sidecar foxia-proxy for ID: {}...",
-      profile_id.unwrap_or("unknown")
+      "Starting proxy directly for profile: {} (upstream: {:?})",
+      profile_id.unwrap_or("unknown"),
+      upstream_url
     );
 
-    let (mut rx, _child) = proxy_cmd
-      .spawn()
-      .map_err(|e| format!("Failed to spawn foxia-proxy: {e}"))?;
-
-    let mut stdout_captured = String::new();
-    let mut sidecar_error = None;
-
-    // Timeout for the entire sidecar execution (30s)
-    let profile_id_str = profile_id.unwrap_or("unknown").to_string();
-    let timeout_fut = timeout(Duration::from_secs(30), async {
-      while let Some(event) = rx.recv().await {
-        match event {
-          CommandEvent::Stdout(line) => {
-            let text = String::from_utf8_lossy(&line).trim().to_string();
-            if !text.is_empty() {
-              log::info!("[Sidecar STDOUT] {}", text);
-              // Only capture JSON-like output (starts with {)
-              if text.starts_with('{') {
-                stdout_captured.push_str(&text);
-              }
-            }
-          }
-          CommandEvent::Stderr(line) => {
-            let text = String::from_utf8_lossy(&line).trim().to_string();
-            if !text.is_empty() {
-              log::warn!("[Sidecar STDERR] {}", text);
-            }
-          }
-          CommandEvent::Terminated(payload) => {
-            log::info!("[Sidecar] Terminated with code {:?}", payload.code);
-            if payload.code != Some(0) && payload.code.is_some() {
-              sidecar_error = Some(format!(
-                "Sidecar exited with non-zero code: {:?}",
-                payload.code
-              ));
-            }
-            break;
-          }
-          _ => {}
-        }
-      }
-    });
-
-    if let Err(_) = timeout_fut.await {
-      log::error!(
-        "Proxy sidecar (ID: {}) timed out after 30 seconds",
-        profile_id_str
-      );
-      return Err("Proxy sidecar timed out after 30 seconds".to_string());
-    }
-
-    if let Some(err) = sidecar_error {
-      log::error!("Proxy sidecar error: {}", err);
-      return Err(err);
-    }
-
-    log::info!("Sidecar foxia-proxy finished for ID: {}", profile_id_str);
-
-    let json_string = if stdout_captured.is_empty() {
-      return Err("Proxy sidecar produced no JSON output".to_string());
-    } else {
-      stdout_captured
-    };
-
-    // Parse the JSON output
-    let json: Value = serde_json::from_str(json_string.trim())
-      .map_err(|e| format!("Failed to parse JSON: {e}. Output was: {}", json_string))?;
-
-    // Extract proxy ID - the other fields might be null since we didn't wait in sidecar
-    let id = json["id"].as_str().ok_or("Missing proxy ID")?;
+    let final_config =
+      crate::proxy_runner::start_proxy_process_with_profile(upstream_url, None, profile_id, true)
+        .await
+        .map_err(|e| format!("Failed to start proxy: {e}"))?;
 
     log::info!(
-      "Sidecar launched worker. Waiting for proxy (ID: {}) to become ready...",
-      id
-    );
-
-    // Call our new public wait function from proxy_runner
-    let final_config = crate::proxy_runner::wait_for_proxy_port(id.to_string())
-      .await
-      .map_err(|e| format!("Proxy worker failed to bind port: {e}"))?;
-
-    log::info!(
-      "Proxy (ID: {}) is now ready on port {}",
-      id,
+      "Proxy (ID: {}) is ready on port {}",
+      final_config.id,
       final_config.local_port.unwrap_or(0)
     );
 
     let proxy_info = ProxyInfo {
-      id: id.to_string(),
+      id: final_config.id.clone(),
       local_url: final_config.local_url.unwrap_or_default(),
       upstream_host: proxy_settings
         .map(|p| p.host.clone())
