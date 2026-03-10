@@ -209,6 +209,26 @@ impl Downloader {
 
         Ok(download_url)
       }
+      BrowserType::Orbita => {
+        // Fetch the actual download URL from GoLogin API
+        let releases = self
+          .api_client
+          .fetch_orbita_releases_with_caching(false)
+          .await?;
+
+        let release = releases
+          .iter()
+          .find(|r| r.version == version)
+          .or_else(|| releases.first()) // Fallback to latest if version mismatch
+          .ok_or("No Orbita releases found")?;
+
+        let download_url = release
+          .download_url
+          .clone()
+          .ok_or_else(|| format!("No download URL provided for Orbita version {version}"))?;
+
+        Ok(download_url)
+      }
       _ => {
         // For other browsers, use the provided URL
         Ok(download_info.url.clone())
@@ -1059,6 +1079,7 @@ mod tests {
       base_url.clone(), // firefox_dev_api_base
       base_url.clone(), // github_api_base
       base_url.clone(), // chromium_api_base
+      base_url.clone(), // orbita_api_base
     )
   }
 

@@ -1019,7 +1019,7 @@ impl ProxyManager {
     // Bypass Tauri sidecar entirely - call proxy_runner directly
     // Tauri's sidecar event loop on Windows never fires Terminated events,
     // causing deadlocks. Direct invocation avoids all pipe/handle issues.
-    let upstream_url = proxy_settings.map(|p| Self::build_proxy_url(p));
+    let upstream_url = proxy_settings.map(Self::build_proxy_url);
 
     log::info!(
       "Starting proxy directly for profile: {} (upstream: {:?})",

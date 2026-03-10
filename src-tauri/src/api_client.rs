@@ -332,6 +332,15 @@ pub struct BrowserRelease {
   pub version: String,
   pub date: String,
   pub is_prerelease: bool,
+  pub download_url: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OrbitaApiResponse {
+  #[serde(rename = "latestVersion")]
+  pub latest_version: String,
+  #[serde(rename = "browserDownloadUrl")]
+  pub browser_download_url: String,
 }
 
 /// Wayfern version info from https://download.wayfern.com/version.json
@@ -365,6 +374,7 @@ pub struct ApiClient {
   firefox_dev_api_base: String,
   github_api_base: String,
   chromium_api_base: String,
+  orbita_api_base: String,
 }
 
 impl ApiClient {
@@ -381,6 +391,7 @@ impl ApiClient {
       github_api_base: "https://api.github.com".to_string(),
       chromium_api_base: "https://commondatastorage.googleapis.com/chromium-browser-snapshots"
         .to_string(),
+      orbita_api_base: "https://api.gologin.com".to_string(),
     }
   }
 
@@ -443,6 +454,74 @@ impl ApiClient {
     Ok(all_releases)
   }
 
+  pub async fn fetch_orbita_releases_with_caching(
+    &self,
+    no_caching: bool,
+  ) -> Result<Vec<BrowserRelease>, Box<dyn std::error::Error + Send + Sync>> {
+    // Check cache first
+    if !no_caching {
+      if let Some(cached_releases) = self.load_cached_versions("orbita") {
+        // For Orbita, we MUST have the download URL. If cache doesn't have it, skip cache.
+        if cached_releases.iter().any(|r| r.download_url.is_some()) {
+          return Ok(cached_releases);
+        }
+      }
+    }
+
+    log::info!("Fetching Orbita releases from GoLogin API...");
+
+    // Orbita needs OS specific info for the API
+    let os = if cfg!(target_os = "windows") {
+      "win"
+    } else if cfg!(target_os = "linux") {
+      "lin"
+    } else if cfg!(target_os = "macos") {
+      if cfg!(target_arch = "aarch64") {
+        "macM1"
+      } else {
+        "mac"
+      }
+    } else {
+      "win" // Default
+    };
+
+    let url = format!(
+      "{}/gologin-global-settings/latest-browser-info?os={}",
+      self.orbita_api_base, os
+    );
+
+    let response = self
+      .client
+      .get(url)
+      .header("User-Agent", "gologin-api")
+      .send()
+      .await?;
+
+    if !response.status().is_success() {
+      return Err(format!("Failed to fetch Orbita version: {}", response.status()).into());
+    }
+
+    let orbita_response: OrbitaApiResponse = response.json().await?;
+
+    // Since GoLogin API only returns the LATEST version, we'll return a list with only one version.
+    // In a real scenario, we might want to merge this with existing cached versions to keep history.
+    let releases = vec![BrowserRelease {
+      version: orbita_response.latest_version,
+      date: "".to_string(), // API doesn't provide date
+      is_prerelease: false,
+      download_url: Some(orbita_response.browser_download_url),
+    }];
+
+    // Cache the results
+    if !no_caching {
+      if let Err(e) = self.save_cached_versions("orbita", &releases) {
+        log::error!("Failed to cache Orbita versions: {e}");
+      }
+    }
+
+    Ok(releases)
+  }
+
   pub fn instance() -> &'static ApiClient {
     &API_CLIENT
   }
@@ -453,6 +532,7 @@ impl ApiClient {
     firefox_dev_api_base: String,
     github_api_base: String,
     chromium_api_base: String,
+    orbita_api_base: String,
   ) -> Self {
     Self {
       client: Client::new(),
@@ -460,6 +540,7 @@ impl ApiClient {
       firefox_dev_api_base,
       github_api_base,
       chromium_api_base,
+      orbita_api_base,
     }
   }
 
@@ -512,6 +593,7 @@ impl ApiClient {
           is_prerelease: is_browser_version_nightly(browser, &version, None),
           version,
           date: "".to_string(),
+          download_url: None,
         })
         .collect();
       return Some(releases);
@@ -642,6 +724,7 @@ impl ApiClient {
             version: release.version.clone(),
             date: release.date,
             is_prerelease: !is_stable,
+            download_url: None,
           })
         } else {
           None
@@ -711,6 +794,7 @@ impl ApiClient {
             version: release.version.clone(),
             date: release.date,
             is_prerelease: !is_stable,
+            download_url: None,
           })
         } else {
           None
@@ -978,6 +1062,7 @@ impl ApiClient {
         version: version.clone(),
         date: "".to_string(),
         is_prerelease: false,
+        download_url: None,
       })
       .collect();
 
@@ -1270,6 +1355,7 @@ mod tests {
       base_url.clone(), // firefox_dev_api_base
       base_url.clone(), // github_api_base
       base_url.clone(), // chromium_api_base
+      base_url.clone(), // orbita_api_base
     )
   }
 

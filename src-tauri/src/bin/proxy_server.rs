@@ -219,7 +219,7 @@ async fn main() {
       let port = start_matches.get_one::<u16>("port").copied();
       let profile_id = start_matches.get_one::<String>("profile-id").cloned();
 
-      match start_proxy_process_with_profile(upstream_url, port, profile_id.as_deref(), false).await
+      match start_proxy_process_with_profile(upstream_url, port, profile_id.as_deref(), true).await
       {
         Ok(config) => {
           // Output the configuration as JSON for the Rust side to parse

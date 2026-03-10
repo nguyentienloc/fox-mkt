@@ -158,6 +158,7 @@ pub fn convert_zsmkt_profile(zs_profile: ZsMktProfile, proxy_id: Option<String>)
     release_type: default_release_type(),
     camoufox_config: Some(camoufox_config),
     wayfern_config: None,
+    orbita_config: None,
     group_id: None,
     tags: Vec::new(),
     note: Some(format!(

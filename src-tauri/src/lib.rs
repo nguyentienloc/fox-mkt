@@ -55,7 +55,7 @@ use browser_runner::{
   check_browser_exists, kill_browser_profile, launch_browser_profile, open_url_with_profile,
 };
 
-use profile::manager::{
+use crate::profile::manager::{
   check_browser_status, clone_profile, create_browser_profile_new, delete_profile,
   import_zsmkt_profiles_batch, list_browser_profiles, rename_profile, update_camoufox_config,
   update_profile_details, update_profile_note, update_profile_odoo_id, update_profile_proxy,

@@ -90,6 +90,7 @@ impl BrowserVersionManager {
             | "windows-arm64"
         ))
       }
+      "orbita" => Ok(true),
       _ => Err(format!("Unknown browser: {browser}").into()),
     }
   }
@@ -104,6 +105,7 @@ impl BrowserVersionManager {
       "chromium",
       "camoufox",
       "wayfern",
+      "orbita",
     ];
 
     all_browsers
@@ -242,6 +244,7 @@ impl BrowserVersionManager {
       "chromium" => self.fetch_chromium_versions(true).await?,
       "camoufox" => self.fetch_camoufox_versions(true).await?,
       "wayfern" => self.fetch_wayfern_versions(true).await?,
+      "orbita" => self.fetch_orbita_versions(true).await?,
       _ => return Err(format!("Unsupported browser: {browser}").into()),
     };
 
@@ -269,6 +272,7 @@ impl BrowserVersionManager {
           version: v.clone(),
           date: "".to_string(),
           is_prerelease: crate::api_client::is_browser_version_nightly(browser, v, None),
+          download_url: None,
         })
         .collect();
       if let Err(e) = self
@@ -448,8 +452,29 @@ impl BrowserVersionManager {
           .into_iter()
           .map(|version| BrowserVersionInfo {
             version: version.clone(),
-            is_prerelease: false, // Wayfern releases are always stable
             date: "".to_string(),
+            is_prerelease: false,
+          })
+          .collect()
+      }
+      "orbita" => {
+        let releases = self.fetch_orbita_releases_detailed(true).await?;
+        merged_versions
+          .into_iter()
+          .map(|version| {
+            if let Some(release) = releases.iter().find(|r| r.version == version) {
+              BrowserVersionInfo {
+                version: release.version.clone(),
+                is_prerelease: release.is_prerelease,
+                date: release.date.clone(),
+              }
+            } else {
+              BrowserVersionInfo {
+                version: version.clone(),
+                is_prerelease: false,
+                date: "".to_string(),
+              }
+            }
           })
           .collect()
       }
@@ -494,6 +519,7 @@ impl BrowserVersionManager {
         version: v.clone(),
         date: "".to_string(),
         is_prerelease: crate::api_client::is_browser_version_nightly(browser, v, None),
+        download_url: None,
       })
       .collect();
     if let Err(e) = self.api_client.save_cached_versions(browser, &releases) {
@@ -701,6 +727,19 @@ impl BrowserVersionManager {
           is_archive,
         })
       }
+      "orbita" => {
+        let filename = match os.as_str() {
+          "windows" => format!("orbita-{version}.zip"),
+          _ => format!("orbita-{version}.tar.gz"),
+        };
+
+        // URL will be resolved in downloader.rs
+        Ok(DownloadInfo {
+          url: "https://api.gologin.com/orbita/download".to_string(),
+          filename,
+          is_archive: true,
+        })
+      }
       _ => Err(format!("Unsupported browser: {browser}").into()),
     }
   }
@@ -804,6 +843,7 @@ impl BrowserVersionManager {
         version: r.tag_name.clone(),
         date: r.published_at.clone(),
         is_prerelease: r.is_nightly,
+        download_url: None,
       })
       .collect();
     // Always save so that other callers without release_name can classify correctly
@@ -830,6 +870,7 @@ impl BrowserVersionManager {
         version: r.tag_name.clone(),
         date: r.published_at.clone(),
         is_prerelease: r.is_nightly,
+        download_url: None,
       })
       .collect();
     if let Err(e) = self.api_client.save_cached_versions("brave", &converted) {
@@ -872,6 +913,24 @@ impl BrowserVersionManager {
     self
       .api_client
       .fetch_camoufox_releases_with_caching(no_caching)
+      .await
+  }
+
+  async fn fetch_orbita_versions(
+    &self,
+    no_caching: bool,
+  ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+    let releases = self.fetch_orbita_releases_detailed(no_caching).await?;
+    Ok(releases.into_iter().map(|r| r.version).collect())
+  }
+
+  async fn fetch_orbita_releases_detailed(
+    &self,
+    no_caching: bool,
+  ) -> Result<Vec<BrowserRelease>, Box<dyn std::error::Error + Send + Sync>> {
+    self
+      .api_client
+      .fetch_orbita_releases_with_caching(no_caching)
       .await
   }
 
@@ -925,6 +984,7 @@ mod tests {
       base_url.clone(), // firefox_dev_api_base
       base_url.clone(), // github_api_base
       base_url.clone(), // chromium_api_base
+      base_url.clone(), // orbita_api_base
     )
   }
 

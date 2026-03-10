@@ -1,4 +1,4 @@
-use crate::browser::{BrowserType, ProxySettings};
+use crate::browser::ProxySettings;
 use crate::camoufox_manager::CamoufoxConfig;
 use crate::events;
 use crate::profile::types::BrowserProfile;
@@ -59,6 +59,7 @@ impl ProfileManager {
     proxy_id: Option<String>,
     camoufox_config: Option<CamoufoxConfig>,
     wayfern_config: Option<WayfernConfig>,
+    orbita_config: Option<WayfernConfig>,
     group_id: Option<String>,
     username: Option<String>,
     password: Option<String>,
@@ -109,6 +110,7 @@ impl ProfileManager {
           release_type: release_type.to_string(),
           camoufox_config: None,
           wayfern_config: None,
+          orbita_config: None,
           group_id: group_id.clone(),
           tags: Vec::new(),
           note: None,
@@ -159,14 +161,13 @@ impl ProfileManager {
         browser_dir.push(browser);
         browser_dir.push(version);
         #[cfg(target_os = "macos")]
-        let binary_path = browser_dir.join("Chromium.app/Contents/MacOS/Chromium");
+        let binary_path = browser_dir.join("Wayfern.app/Contents/MacOS/Wayfern");
         #[cfg(target_os = "windows")]
-        let binary_path = browser_dir.join("chrome.exe");
+        let binary_path = browser_dir.join("wayfern.exe");
         #[cfg(target_os = "linux")]
-        let binary_path = browser_dir.join("chrome");
+        let binary_path = browser_dir.join("wayfern");
         config.executable_path = Some(binary_path.to_string_lossy().to_string());
       }
-
       if config.fingerprint.is_none() {
         let temp_profile = BrowserProfile {
           id: uuid::Uuid::new_v4(),
@@ -179,6 +180,7 @@ impl ProfileManager {
           release_type: release_type.to_string(),
           camoufox_config: None,
           wayfern_config: None,
+          orbita_config: None,
           group_id: group_id.clone(),
           tags: Vec::new(),
           note: None,
@@ -198,7 +200,6 @@ impl ProfileManager {
           .generate_fingerprint_config(app_handle, &temp_profile, &config)
           .await
         {
-          // Extract User Agent from Wayfern fingerprint
           if let Ok(fp_val) = serde_json::from_str::<serde_json::Value>(&gen_fp) {
             if let Some(ua) = fp_val.get("userAgent").and_then(|v| v.as_str()) {
               user_agent = Some(ua.to_string());
@@ -206,18 +207,72 @@ impl ProfileManager {
           }
           config.fingerprint = Some(gen_fp);
         }
-      } else if let Some(fp_str) = &config.fingerprint {
-        // Extract User Agent from existing fingerprint
-        if let Ok(fp_val) = serde_json::from_str::<serde_json::Value>(fp_str) {
-          if let Some(ua) = fp_val.get("userAgent").and_then(|v| v.as_str()) {
-            user_agent = Some(ua.to_string());
-          }
-        }
       }
       config.proxy = None;
       Some(config)
     } else {
       wayfern_config
+    };
+
+    let final_orbita_config = if browser == "orbita" {
+      let mut config = orbita_config.unwrap_or_default();
+      if config.executable_path.is_none() {
+        let mut browser_dir = self.get_binaries_dir();
+        browser_dir.push(browser);
+        browser_dir.push(version);
+        #[cfg(target_os = "macos")]
+        let binary_path = browser_dir.join("Orbita-Browser.app/Contents/MacOS/Orbita");
+        #[cfg(target_os = "windows")]
+        let binary_path = browser_dir.join("chrome.exe");
+        #[cfg(target_os = "linux")]
+        let binary_path = browser_dir.join("chrome");
+        config.executable_path = Some(binary_path.to_string_lossy().to_string());
+      }
+      // Reusing wayfern_manager for now if it works for chromium-based
+      if config.fingerprint.is_none() {
+        let temp_profile = BrowserProfile {
+          id: uuid::Uuid::new_v4(),
+          name: name.to_string(),
+          browser: browser.to_string(),
+          version: version.to_string(),
+          proxy_id: proxy_id.clone(),
+          process_id: None,
+          last_launch: None,
+          release_type: release_type.to_string(),
+          camoufox_config: None,
+          wayfern_config: None,
+          orbita_config: None,
+          group_id: group_id.clone(),
+          tags: Vec::new(),
+          note: None,
+          sync_enabled: false,
+          last_sync: None,
+          odoo_id: None,
+          profile_url: None,
+          created_at: Some(chrono::Utc::now().timestamp() as u64),
+          odoo_proxy: None,
+          username: username.clone(),
+          password: password.clone(),
+          user_agent: None,
+          absolute_path: None,
+        };
+        if let Ok(gen_fp) = self
+          .wayfern_manager
+          .generate_fingerprint_config(app_handle, &temp_profile, &config)
+          .await
+        {
+          if let Ok(fp_val) = serde_json::from_str::<serde_json::Value>(&gen_fp) {
+            if let Some(ua) = fp_val.get("userAgent").and_then(|v| v.as_str()) {
+              user_agent = Some(ua.to_string());
+            }
+          }
+          config.fingerprint = Some(gen_fp);
+        }
+      }
+      config.proxy = None;
+      Some(config)
+    } else {
+      orbita_config
     };
 
     let profile = BrowserProfile {
@@ -231,6 +286,7 @@ impl ProfileManager {
       release_type: release_type.to_string(),
       camoufox_config: final_camoufox_config,
       wayfern_config: final_wayfern_config,
+      orbita_config: final_orbita_config,
       group_id: group_id.clone(),
       tags: Vec::new(),
       note: None,
@@ -376,6 +432,26 @@ impl ProfileManager {
       .find(|p| p.id == profile_uuid)
       .ok_or("Profile not found")?;
     profile.wayfern_config = Some(config);
+    self.save_profile(&profile).map_err(|e| e.to_string())?;
+    let _ = events::emit_empty("profiles-changed");
+    Ok(())
+  }
+
+  #[allow(dead_code)]
+  pub async fn update_orbita_config(
+    &self,
+    _app_handle: tauri::AppHandle,
+    profile_id: &str,
+    config: WayfernConfig,
+  ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let profile_uuid = uuid::Uuid::parse_str(profile_id).map_err(|e| e.to_string())?;
+    let mut profile = self
+      .list_profiles()
+      .map_err(|e| e.to_string())?
+      .into_iter()
+      .find(|p| p.id == profile_uuid)
+      .ok_or("Profile not found")?;
+    profile.orbita_config = Some(config);
     self.save_profile(&profile).map_err(|e| e.to_string())?;
     let _ = events::emit_empty("profiles-changed");
     Ok(())
@@ -640,15 +716,16 @@ lazy_static::lazy_static! {
 #[tauri::command]
 #[allow(dead_code)]
 #[allow(clippy::too_many_arguments)]
-pub async fn create_browser_profile_with_group(
+pub async fn create_browser_profile_new(
   app_handle: tauri::AppHandle,
   name: String,
-  browser: String,
+  browser_str: String,
   version: String,
   release_type: String,
   proxy_id: Option<String>,
   camoufox_config: Option<CamoufoxConfig>,
   wayfern_config: Option<WayfernConfig>,
+  orbita_config: Option<WayfernConfig>,
   group_id: Option<String>,
   username: Option<String>,
   password: Option<String>,
@@ -657,12 +734,13 @@ pub async fn create_browser_profile_with_group(
     .create_profile_with_group(
       &app_handle,
       &name,
-      &browser,
+      &browser_str,
       &version,
       &release_type,
       proxy_id,
       camoufox_config,
       wayfern_config,
+      orbita_config,
       group_id,
       username,
       password,
@@ -777,40 +855,6 @@ pub fn update_profile_details(
     .map_err(|e| e.to_string())
 }
 
-#[allow(clippy::too_many_arguments)]
-#[tauri::command]
-pub async fn create_browser_profile_new(
-  app_handle: tauri::AppHandle,
-  name: String,
-  browser_str: String,
-  version: String,
-  release_type: String,
-  proxy_id: Option<String>,
-  camoufox_config: Option<CamoufoxConfig>,
-  wayfern_config: Option<WayfernConfig>,
-  group_id: Option<String>,
-  username: Option<String>,
-  password: Option<String>,
-) -> Result<BrowserProfile, String> {
-  let browser_type = BrowserType::from_str(&browser_str).map_err(|e| e.to_string())?;
-  ProfileManager::instance()
-    .create_profile_with_group(
-      &app_handle,
-      &name,
-      browser_type.as_str(),
-      &version,
-      &release_type,
-      proxy_id,
-      camoufox_config,
-      wayfern_config,
-      group_id,
-      username,
-      password,
-    )
-    .await
-    .map_err(|e| e.to_string())
-}
-
 #[tauri::command]
 pub async fn update_camoufox_config(
   app_handle: tauri::AppHandle,
@@ -831,6 +875,19 @@ pub async fn update_wayfern_config(
 ) -> Result<(), String> {
   ProfileManager::instance()
     .update_wayfern_config(app_handle, &profile_id, config)
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[allow(dead_code)]
+pub async fn update_orbita_config(
+  app_handle: tauri::AppHandle,
+  profile_id: String,
+  config: WayfernConfig,
+) -> Result<(), String> {
+  ProfileManager::instance()
+    .update_orbita_config(app_handle, &profile_id, config)
     .await
     .map_err(|e| e.to_string())
 }

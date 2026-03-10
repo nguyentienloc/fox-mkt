@@ -1044,7 +1044,7 @@ impl BrowserRunner {
         // Wayfern URL opening is handled differently
         Err("URL opening in existing Wayfern instance is not supported".into())
       }
-      BrowserType::Chromium | BrowserType::Brave => {
+      BrowserType::Chromium | BrowserType::Brave | BrowserType::Orbita => {
         #[cfg(target_os = "macos")]
         {
           let profiles_dir = self.profile_manager.get_profiles_dir();

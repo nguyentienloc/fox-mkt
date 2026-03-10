@@ -32,6 +32,8 @@ pub struct BrowserProfile {
   #[serde(default)]
   pub wayfern_config: Option<WayfernConfig>, // Wayfern configuration
   #[serde(default)]
+  pub orbita_config: Option<WayfernConfig>, // Orbita configuration (reusing WayfernConfig structure for now)
+  #[serde(default)]
   pub group_id: Option<String>, // Reference to profile group
   #[serde(default)]
   pub tags: Vec<String>, // Free-form tags

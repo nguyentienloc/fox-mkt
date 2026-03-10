@@ -177,6 +177,16 @@
     "profilesDescription": "Xóa các profile đã chọn? Toàn bộ dữ liệu sẽ mất vĩnh viễn.",
     "profilesToDelete": "Các profile sẽ bị xóa:"
   },
+  "browser": {
+    "firefox": "Firefox",
+    "firefoxDeveloper": "Firefox Developer Edition",
+    "chromium": "Chromium",
+    "brave": "Brave",
+    "zen": "Zen Browser",
+    "camoufox": "Camoufox",
+    "wayfern": "Wayfern",
+    "orbita": "Orbita"
+  },
   "proxies": {
     "title": "Quản lý Proxy",
     "management": "Quản lý Proxy",
@@ -273,6 +283,7 @@
     },
     "chromiumWayfern": "Chromium (Wayfern)",
     "firefoxCamoufox": "Firefox (Camoufox)",
+    "orbita": "Orbita (GoLogin)",
     "antiDetectBrowser": "Trình Duyệt Anti-Detect",
     "profileName": "Tên Profile",
     "profileNamePlaceholder": "Nhập tên profile",

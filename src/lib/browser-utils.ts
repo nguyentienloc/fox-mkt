@@ -16,7 +16,8 @@ export function getBrowserDisplayName(browserType: string): string {
     brave: "Brave",
     chromium: "Chromium",
     camoufox: "Firefox (Camoufox)",
-    wayfern: "Chromium (Wayfern)",
+    wayfern: "Wayfern",
+    orbita: "Orbita",
   };
 
   return browserNames[browserType] || browserType;
@@ -32,6 +33,7 @@ export function getBrowserIcon(browserType: string) {
     case "camoufox":
       return FaFirefox; // Firefox-based anti-detect browser
     case "wayfern":
+    case "orbita":
       return FaChrome; // Chromium-based anti-detect browser
     default:
       // All other browsers get a warning icon

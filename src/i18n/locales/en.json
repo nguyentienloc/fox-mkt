@@ -169,6 +169,7 @@
       "description": "Choose a browser with anti-detection capabilities",
       "chromium": "Chromium (Wayfern)",
       "firefox": "Firefox (Camoufox)",
+      "orbita": "Orbita (GoLogin)",
       "badge": "Anti-Detect Browser"
     },
     "regular": {
@@ -457,7 +458,8 @@
     "brave": "Brave",
     "zen": "Zen Browser",
     "camoufox": "Camoufox",
-    "wayfern": "Wayfern"
+    "wayfern": "Wayfern",
+    "orbita": "Orbita"
   },
   "auth": {
     "checking_status": "Checking authentication status...",

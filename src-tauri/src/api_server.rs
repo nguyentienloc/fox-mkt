@@ -63,6 +63,8 @@ pub struct CreateProfileRequest {
   pub camoufox_config: Option<serde_json::Value>,
   #[schema(value_type = Object)]
   pub wayfern_config: Option<serde_json::Value>,
+  #[schema(value_type = Object)]
+  pub orbita_config: Option<serde_json::Value>,
   pub group_id: Option<String>,
   pub tags: Option<Vec<String>>,
 }
@@ -592,6 +594,13 @@ async fn create_profile(
     None
   };
 
+  // Parse orbita config if provided
+  let orbita_config = if let Some(config) = &request.orbita_config {
+    serde_json::from_value(config.clone()).ok()
+  } else {
+    None
+  };
+
   match profile_manager
     .create_profile_with_group(
       &state.app_handle,
@@ -602,6 +611,7 @@ async fn create_profile(
       request.proxy_id.clone(),
       camoufox_config,
       wayfern_config,
+      orbita_config,
       request.group_id.clone(),
       None, // username
       None, // password

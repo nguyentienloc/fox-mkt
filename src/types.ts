@@ -24,6 +24,7 @@ export interface BrowserProfile {
   release_type: string; // "stable" or "nightly"
   camoufox_config?: CamoufoxConfig; // Camoufox configuration
   wayfern_config?: WayfernConfig; // Wayfern configuration
+  orbita_config?: WayfernConfig; // Orbita configuration (reusing Wayfern style for now)
   group_id?: string; // Reference to profile group
   tags?: string[];
   note?: string; // User note

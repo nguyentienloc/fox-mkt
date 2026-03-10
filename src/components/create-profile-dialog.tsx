@@ -46,7 +46,8 @@ type BrowserTypeString =
   | "brave"
   | "zen"
   | "camoufox"
-  | "wayfern";
+  | "wayfern"
+  | "orbita";
 
 interface CreateProfileDialogProps {
   isOpen: boolean;
@@ -59,6 +60,7 @@ interface CreateProfileDialogProps {
     proxyId?: string;
     camoufoxConfig?: CamoufoxConfig;
     wayfernConfig?: WayfernConfig;
+    orbitaConfig?: WayfernConfig;
     groupId?: string;
     username?: string;
     password?: string;
@@ -368,6 +370,28 @@ export function CreateProfileDialog({
             username: username.trim() || undefined,
             password: password.trim() || undefined,
           });
+        } else if (selectedBrowser === "orbita") {
+          const bestOrbitaVersion = getBestAvailableVersion("orbita");
+          if (!bestOrbitaVersion) {
+            console.error("No Orbita version available");
+            return;
+          }
+
+          // Orbita uses same config structure as Wayfern for now
+          const finalOrbitaConfig = { ...wayfernConfig };
+
+          await onCreateProfile({
+            name: profileName.trim(),
+            browserStr: "orbita" as BrowserTypeString,
+            version: bestOrbitaVersion.version,
+            releaseType: bestOrbitaVersion.releaseType,
+            proxyId: selectedProxyId,
+            orbitaConfig: finalOrbitaConfig,
+            groupId:
+              selectedGroupId !== "default" ? selectedGroupId : undefined,
+            username: username.trim() || undefined,
+            password: password.trim() || undefined,
+          });
         } else {
           // Default to Camoufox
           const bestCamoufoxVersion = getBestAvailableVersion("camoufox");
@@ -580,6 +604,30 @@ export function CreateProfileDialog({
                               </div>
                             </div>
                           </Button>
+
+                          {/* Orbita (Chromium) - Third */}
+                          <Button
+                            onClick={() => handleBrowserSelect("orbita")}
+                            className="flex gap-3 justify-start items-center p-4 w-full h-16 border-2 transition-colors hover:border-primary/50"
+                            variant="outline"
+                          >
+                            <div className="flex justify-center items-center w-8 h-8">
+                              {(() => {
+                                const IconComponent = getBrowserIcon("orbita");
+                                return IconComponent ? (
+                                  <IconComponent className="w-6 h-6" />
+                                ) : null;
+                              })()}
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium">
+                                {t("createProfile.orbita")}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {t("createProfile.antiDetectBrowser")}
+                              </div>
+                            </div>
+                          </Button>
                         </div>
                       </div>
                     </TabsContent>
@@ -777,6 +825,92 @@ export function CreateProfileDialog({
                                   const bestVersion =
                                     getBestAvailableVersion("wayfern");
                                   return `Downloading Wayfern version (${bestVersion?.version})...`;
+                                })()}
+                              </div>
+                            )}
+
+                            <WayfernConfigForm
+                              config={wayfernConfig}
+                              onConfigChange={updateWayfernConfig}
+                              isCreating
+                            />
+                          </div>
+                        ) : selectedBrowser === "orbita" ? (
+                          // Orbita Configuration (similar to Wayfern)
+                          <div className="space-y-6">
+                            {/* Orbita Download Status */}
+                            {isLoadingReleaseTypes && (
+                              <div className="flex gap-3 items-center p-3 rounded-md border">
+                                <div className="w-4 h-4 rounded-full border-2 animate-spin border-muted/40 border-t-primary" />
+                                <p className="text-sm text-muted-foreground">
+                                  Fetching available versions...
+                                </p>
+                              </div>
+                            )}
+                            {!isLoadingReleaseTypes && releaseTypesError && (
+                              <div className="flex gap-3 items-center p-3 rounded-md border border-destructive/50 bg-destructive/10">
+                                <p className="flex-1 text-sm text-destructive">
+                                  {releaseTypesError}
+                                </p>
+                                <RippleButton
+                                  onClick={() =>
+                                    selectedBrowser &&
+                                    loadReleaseTypes(selectedBrowser)
+                                  }
+                                  size="sm"
+                                  variant="outline"
+                                >
+                                  Retry
+                                </RippleButton>
+                              </div>
+                            )}
+                            {!isLoadingReleaseTypes &&
+                              !releaseTypesError &&
+                              !isBrowserCurrentlyDownloading("orbita") &&
+                              !isBrowserVersionAvailable("orbita") &&
+                              getBestAvailableVersion("orbita") && (
+                                <div className="flex gap-3 items-center p-3 rounded-md border">
+                                  <p className="text-sm text-muted-foreground">
+                                    {(() => {
+                                      const bestVersion =
+                                        getBestAvailableVersion("orbita");
+                                      return `Orbita version (${bestVersion?.version}) needs to be downloaded`;
+                                    })()}
+                                  </p>
+                                  <LoadingButton
+                                    onClick={() => handleDownload("orbita")}
+                                    isLoading={isBrowserCurrentlyDownloading(
+                                      "orbita",
+                                    )}
+                                    size="sm"
+                                    disabled={isBrowserCurrentlyDownloading(
+                                      "orbita",
+                                    )}
+                                  >
+                                    {isBrowserCurrentlyDownloading("orbita")
+                                      ? "Downloading..."
+                                      : "Download"}
+                                  </LoadingButton>
+                                </div>
+                              )}
+                            {!isLoadingReleaseTypes &&
+                              !releaseTypesError &&
+                              !isBrowserCurrentlyDownloading("orbita") &&
+                              isBrowserVersionAvailable("orbita") && (
+                                <div className="p-3 text-sm rounded-md border text-muted-foreground">
+                                  {(() => {
+                                    const bestVersion =
+                                      getBestAvailableVersion("orbita");
+                                    return `✓ Orbita version (${bestVersion?.version}) is available`;
+                                  })()}
+                                </div>
+                              )}
+                            {isBrowserCurrentlyDownloading("orbita") && (
+                              <div className="p-3 text-sm rounded-md border text-muted-foreground">
+                                {(() => {
+                                  const bestVersion =
+                                    getBestAvailableVersion("orbita");
+                                  return `Downloading Orbita version (${bestVersion?.version})...`;
                                 })()}
                               </div>
                             )}
