@@ -62,11 +62,17 @@ impl AutoUpdater {
 
     for profile in profiles {
       // Only check supported browsers
-      if !self
+      let is_supported = self
         .browser_version_manager
         .is_browser_supported(&profile.browser)
-        .unwrap_or(false)
-      {
+        .unwrap_or(false);
+
+      if !is_supported {
+        continue;
+      }
+
+      // Temporarily only check updates for camoufox and orbita
+      if profile.browser != "camoufox" && profile.browser != "orbita" {
         continue;
       }
 

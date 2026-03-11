@@ -2726,14 +2726,33 @@ pub async fn kill_browser_profile(
         id: String,
         is_running: bool,
       }
-      // On kill failure, we assume the process is still running
+      // If the error is just that the process is not found, we should consider it
+      // successfully killed (since it's already dead) and update UI state to false.
+      let is_already_dead =
+        e.to_string().contains("No running") && e.to_string().contains("browser process found");
+
       let payload = RunningChangedPayload {
         id: profile.id.to_string(),
-        is_running: true,
+        is_running: !is_already_dead,
       };
 
-      if let Err(e) = events::emit("profile-running-changed", &payload) {
-        log::warn!("Warning: Failed to emit profile running changed event: {e}");
+      if let Err(emit_err) = events::emit("profile-running-changed", &payload) {
+        log::warn!("Warning: Failed to emit profile running changed event: {emit_err}");
+      }
+
+      if is_already_dead {
+        log::info!("Browser process for {} was already closed.", profile.name);
+
+        // Clear the process ID from the profile to ensure consistent state
+        let mut updated_profile = profile.clone();
+        updated_profile.process_id = None;
+        let _ = browser_runner.save_process_info(&updated_profile);
+
+        if let Err(emit_err) = events::emit("profile-updated", &updated_profile) {
+          log::warn!("Warning: Failed to emit profile update event: {emit_err}");
+        }
+
+        return Ok(());
       }
 
       Err(format!("Failed to kill browser: {e}"))

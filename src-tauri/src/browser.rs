@@ -467,6 +467,13 @@ mod linux {
         install_dir.join("wayfern").join("chrome"),
         install_dir.join("chrome-linux").join("chrome"),
       ],
+      BrowserType::Orbita => vec![
+        install_dir.join("chrome"),
+        install_dir.join("chromium"),
+        install_dir.join("orbita"),
+        install_dir.join("orbita-browser").join("chrome"),
+        install_dir.join("chrome-linux").join("chrome"),
+      ],
       _ => vec![],
     };
 
@@ -559,6 +566,13 @@ mod linux {
         // Subdirectory paths
         install_dir.join("wayfern").join("chromium"),
         install_dir.join("wayfern").join("chrome"),
+        install_dir.join("chrome-linux").join("chrome"),
+      ],
+      BrowserType::Orbita => vec![
+        install_dir.join("chrome"),
+        install_dir.join("chromium"),
+        install_dir.join("orbita"),
+        install_dir.join("orbita-browser").join("chrome"),
         install_dir.join("chrome-linux").join("chrome"),
       ],
       _ => vec![],
@@ -668,6 +682,13 @@ mod windows {
         install_dir.join("wayfern").join("chrome.exe"),
         install_dir.join("chrome-win").join("chrome.exe"),
       ],
+      BrowserType::Orbita => vec![
+        install_dir.join("chrome.exe"),
+        install_dir.join("chromium.exe"),
+        install_dir.join("orbita.exe"),
+        install_dir.join("orbita-browser").join("chrome.exe"),
+        install_dir.join("chrome-win").join("chrome.exe"),
+      ],
       _ => vec![],
     };
 
@@ -761,6 +782,13 @@ mod windows {
         // Subdirectory patterns
         install_dir.join("wayfern").join("chromium.exe"),
         install_dir.join("wayfern").join("chrome.exe"),
+        install_dir.join("chrome-win").join("chrome.exe"),
+      ],
+      BrowserType::Orbita => vec![
+        install_dir.join("chrome.exe"),
+        install_dir.join("chromium.exe"),
+        install_dir.join("orbita.exe"),
+        install_dir.join("orbita-browser").join("chrome.exe"),
         install_dir.join("chrome-win").join("chrome.exe"),
       ],
       _ => vec![],

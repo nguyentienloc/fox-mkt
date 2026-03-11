@@ -557,28 +557,31 @@ export function CreateProfileDialog({
 
                         <div className="space-y-3">
                           {/* Wayfern (Chromium) - First */}
-                          <Button
-                            onClick={() => handleBrowserSelect("wayfern")}
-                            className="flex gap-3 justify-start items-center p-4 w-full h-16 border-2 transition-colors hover:border-primary/50"
-                            variant="outline"
-                          >
-                            <div className="flex justify-center items-center w-8 h-8">
-                              {(() => {
-                                const IconComponent = getBrowserIcon("wayfern");
-                                return IconComponent ? (
-                                  <IconComponent className="w-6 h-6" />
-                                ) : null;
-                              })()}
-                            </div>
-                            <div className="text-left">
-                              <div className="font-medium">
-                                {t("createProfile.chromiumWayfern")}
+                          {false && (
+                            <Button
+                              onClick={() => handleBrowserSelect("wayfern")}
+                              className="flex gap-3 justify-start items-center p-4 w-full h-16 border-2 transition-colors hover:border-primary/50"
+                              variant="outline"
+                            >
+                              <div className="flex justify-center items-center w-8 h-8">
+                                {(() => {
+                                  const IconComponent =
+                                    getBrowserIcon("wayfern");
+                                  return IconComponent ? (
+                                    <IconComponent className="w-6 h-6" />
+                                  ) : null;
+                                })()}
                               </div>
-                              <div className="text-sm text-muted-foreground">
-                                {t("createProfile.antiDetectBrowser")}
+                              <div className="text-left">
+                                <div className="font-medium">
+                                  {t("createProfile.chromiumWayfern")}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {t("createProfile.antiDetectBrowser")}
+                                </div>
                               </div>
-                            </div>
-                          </Button>
+                            </Button>
+                          )}
 
                           {/* Camoufox (Firefox) - Second */}
                           <Button

@@ -1,12 +1,18 @@
 #!/bin/bash
 set -e
 
+if command -v rustc.exe &> /dev/null; then
+  RUSTC_CMD="rustc.exe"
+else
+  RUSTC_CMD="rustc"
+fi
+
 # Get the target triple from environment or use default
-TARGET="${TARGET:-$(rustc -vV 2>/dev/null | sed -n 's|host: ||p' || echo "unknown")}"
+TARGET="${TARGET:-$($RUSTC_CMD -vV 2>/dev/null | sed -n 's|host: ||p' || echo "unknown")}"
 MANIFEST_DIR="$(dirname "$0")"
 
 # Determine source path
-HOST_TARGET=$(rustc -vV 2>/dev/null | sed -n 's|host: ||p' || echo "$TARGET")
+HOST_TARGET=$($RUSTC_CMD -vV 2>/dev/null | sed -n 's|host: ||p' || echo "$TARGET")
 if [[ "$TARGET" == "$HOST_TARGET" ]] || [[ "$TARGET" == "unknown" ]]; then
   # Native target - use debug or release based on profile
   if [[ "${PROFILE:-debug}" == "release" ]]; then
@@ -62,7 +68,11 @@ copy_binary() {
     if [[ -n "$TARGET" ]] && [[ "$TARGET" != "unknown" ]] && [[ "$TARGET" != "$HOST_TARGET" ]]; then
       BUILD_ARGS+=("--target" "$TARGET")
     fi
-    cargo "${BUILD_ARGS[@]}"
+    if command -v cargo.exe &> /dev/null; then
+      cargo.exe "${BUILD_ARGS[@]}"
+    else
+      cargo "${BUILD_ARGS[@]}"
+    fi
     if [[ -f "$SOURCE" ]]; then
       cp "$SOURCE" "$DEST"
       echo "Built and copied $BIN_NAME to $DEST"

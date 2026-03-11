@@ -2,7 +2,7 @@
   "name": "foxia-mkt",
   "private": true,
   "license": "AGPL-3.0",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "type": "module",
   "scripts": {
     "dev": "next dev --turbopack -p 12341",
@@ -95,9 +95,9 @@
       "biome check --fix"
     ],
     "src-tauri/**/*.rs": [
-      "cd src-tauri && cargo fmt --all",
-      "cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings -D clippy::all",
-      "cd src-tauri && cargo test"
+      "cargo fmt --manifest-path src-tauri/Cargo.toml --all",
+      "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings -D clippy::all",
+      "cargo test --manifest-path src-tauri/Cargo.toml"
     ]
   }
 }

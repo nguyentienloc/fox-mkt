@@ -98,13 +98,12 @@ impl BrowserVersionManager {
   /// Get list of browsers supported on the current platform
   pub fn get_supported_browsers(&self) -> Vec<String> {
     let all_browsers = vec![
-      "firefox",
-      "firefox-developer",
-      "zen",
-      "brave",
-      "chromium",
-      "camoufox",
-      "wayfern",
+      // "firefox",
+      // "firefox-developer",
+      // "zen",
+      // "brave",
+      // "chromium",
+      "camoufox", // "wayfern",
       "orbita",
     ];
 
