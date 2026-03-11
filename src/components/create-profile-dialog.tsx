@@ -636,7 +636,6 @@ export function CreateProfileDialog({
                     </TabsContent>
 
                     <TabsContent value="regular" className="mt-0 space-y-6">
-                      {/* Regular Browser Selection */}
                       <div className="space-y-6">
                         <div className="text-center">
                           <h3 className="text-lg font-medium">
