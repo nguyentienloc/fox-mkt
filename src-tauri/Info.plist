@@ -2,30 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCameraUsageDescription</key>
-	<string>Foxia needs camera access to enable camera functionality in web browsers. Each website will still ask for your permission individually.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Foxia needs microphone access to enable microphone functionality in web browsers. Each website will still ask for your permission individually.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Foxia has proxy functionality that requires local network access. You can deny this functionality if you don't plan on setting proxies for browser profiles.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Foxia</string>
-	<key>CFBundleName</key>
-	<string>Foxia</string>
-	<key>CFBundleIdentifier</key>
-	<string>com.foxia-mkt</string>
-    <key>CFBundleURLName</key>
-    <string>com.foxia-mkt</string>
-	<key>CFBundleExecutable</key>
-	<string>foxia-mkt</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
-	<key>CFBundleIconFile</key>
-	<string>icon.icns</string>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.productivity</string>
-	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2025 Foxia-MKT</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -42,6 +20,16 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleExecutable</key>
+	<string>foxia-mkt</string>
+	<key>CFBundleIconFile</key>
+	<string>icon.icns</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.foxia-mkt</string>
+	<key>CFBundleName</key>
+	<string>Foxia</string>
+	<key>CFBundleURLName</key>
+	<string>com.foxia-mkt</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -54,5 +42,17 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Foxia needs camera access to enable camera functionality in web browsers. Each website will still ask for your permission individually.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2025 Foxia-MKT</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Foxia has proxy functionality that requires local network access. You can deny this functionality if you don't plan on setting proxies for browser profiles.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Foxia needs microphone access to enable microphone functionality in web browsers. Each website will still ask for your permission individually.</string>
 </dict>
 </plist>
