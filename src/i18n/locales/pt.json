@@ -428,7 +428,8 @@
       "exportFailed": "Falha ao exportar",
       "syncFailed": "Falha na sincronização",
       "cacheClearFailed": "Falha ao limpar cache",
-      "unknown": "Ocorreu um erro desconhecido"
+      "unknown": "Ocorreu um erro desconhecido",
+      "browserNotDownloaded": "O navegador {{browser}} não foi descarregado. A iniciar o descarregamento agora. Por favor, aguarde e tente novamente quando o descarregamento terminar."
     },
     "loading": {
       "downloading": "Baixando {{browser}} {{version}}",

@@ -152,7 +152,7 @@ impl Downloader {
         // For Camoufox, verify the asset exists and find the correct download URL
         let releases = self
           .api_client
-          .fetch_camoufox_releases_with_caching(true)
+          .fetch_camoufox_releases_with_caching(false)
           .await?;
 
         let release = releases

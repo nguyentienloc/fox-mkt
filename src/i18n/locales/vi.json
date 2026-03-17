@@ -472,5 +472,10 @@
   "auth": {
     "checking_status": "Đang xác nhận trạng thái...",
     "launching": "Đang khởi động..."
+  },
+  "toasts": {
+    "error": {
+      "browserNotDownloaded": "Trình duyệt {{browser}} chưa được tải. Đang tiến hành tải xuống. Vui lòng đợi và thử lại sau khi quá trình tải hoàn tất."
+    }
   }
 }

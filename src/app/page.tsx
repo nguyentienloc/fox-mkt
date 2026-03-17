@@ -2,7 +2,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   BrowserFilter,
@@ -156,8 +156,57 @@ export default function Home() {
   } = useProfileEvents();
   const { groups: groupsData, isLoading: groupsLoading } = useGroupEvents();
   const { isLoading: proxiesLoading } = useProxyEvents();
-  const { downloadBrowser } = useBrowserDownload();
+  const {
+    downloadBrowser,
+    loadDownloadedVersions,
+    loadVersions,
+    isBrowserDownloading,
+  } = useBrowserDownload();
   const { isLoggedIn, isManager } = useAuth();
+  const hasAttemptedAutoDownload = useRef(false);
+
+  // Auto-download Orbita and Camoufox if missing on mount
+  useEffect(() => {
+    if (!isLoggedIn || hasAttemptedAutoDownload.current) return;
+    hasAttemptedAutoDownload.current = true;
+
+    const checkAndDownload = async (browser: string) => {
+      try {
+        // Check if already downloading this browser type to avoid duplicate triggers
+        if (isBrowserDownloading(browser)) {
+          console.log(
+            `[Auto-download] ${browser} is already downloading, skipping.`,
+          );
+          return;
+        }
+
+        const downloaded = await loadDownloadedVersions(browser);
+        if (downloaded.length === 0) {
+          console.log(
+            `[Auto-download] No ${browser} version found, triggering download...`,
+          );
+          const available = await loadVersions(browser);
+          if (available && available.length > 0) {
+            await downloadBrowser(browser, available[0].tag_name, true);
+          }
+        }
+      } catch (error) {
+        console.error(
+          `[Auto-download] Failed to check/download ${browser}:`,
+          error,
+        );
+      }
+    };
+
+    void checkAndDownload("orbita");
+    void checkAndDownload("camoufox");
+  }, [
+    isLoggedIn,
+    loadDownloadedVersions,
+    loadVersions,
+    downloadBrowser,
+    isBrowserDownloading,
+  ]);
 
   const [odooProfiles, setOdooProfiles] = useState<any[]>([]);
   const loadOdooProfiles = useCallback(async () => {

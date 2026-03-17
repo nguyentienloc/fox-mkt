@@ -428,7 +428,8 @@
       "exportFailed": "Échec de l'exportation",
       "syncFailed": "Échec de la synchronisation",
       "cacheClearFailed": "Échec de l'effacement du cache",
-      "unknown": "Une erreur inconnue s'est produite"
+      "unknown": "Une erreur inconnue s'est produite",
+      "browserNotDownloaded": "Le navigateur {{browser}} n'est pas téléchargé. Lancement du téléchargement. Veuillez patienter et réessayer une fois le téléchargement terminé."
     },
     "loading": {
       "downloading": "Téléchargement de {{browser}} {{version}}",

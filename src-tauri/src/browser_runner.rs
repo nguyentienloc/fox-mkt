@@ -632,9 +632,11 @@ impl BrowserRunner {
     let browser = create_browser(browser_type.clone());
 
     // Get executable path using common helper
-    let executable_path = self
-      .get_browser_executable_path(profile)
-      .expect("Failed to get executable path");
+    let executable_path = self.get_browser_executable_path(profile).map_err(|e| {
+      let err_msg = format!("Failed to get executable path: {e}");
+      log::error!("{}", err_msg);
+      err_msg
+    })?;
 
     log::info!("Executable path: {executable_path:?}");
 
@@ -2126,7 +2128,7 @@ impl BrowserRunner {
               || exe_name == "firefox" // Firefox Developer might just show as "firefox"
           }
           "zen" => exe_name.contains("zen"),
-          "chromium" => exe_name.contains("chromium") || exe_name.contains("chrome"),
+          "chromium" | "orbita" => exe_name.contains("chromium") || exe_name.contains("chrome"),
           "brave" => exe_name.contains("brave") || exe_name.contains("Brave"),
           _ => false,
         };
@@ -2404,7 +2406,7 @@ impl BrowserRunner {
             || exe_name == "firefox" // Firefox Developer might just show as "firefox"
         }
         "zen" => exe_name.contains("zen"),
-        "chromium" => exe_name.contains("chromium") || exe_name.contains("chrome"),
+        "chromium" | "orbita" => exe_name.contains("chromium") || exe_name.contains("chrome"),
         "brave" => exe_name.contains("brave") || exe_name.contains("Brave"),
         _ => false,
       };
@@ -2655,8 +2657,37 @@ pub async fn launch_browser_profile(
       is_running: false,
     };
 
-    if let Err(e) = events::emit("profile-running-changed", &payload) {
-      log::warn!("Warning: Failed to emit profile running changed event: {e}");
+    if let Err(emit_err) = events::emit("profile-running-changed", &payload) {
+      log::warn!("Warning: Failed to emit profile running changed event: {emit_err}");
+    }
+
+    let error_str = e.to_string();
+
+    // Check if the error is due to missing browser executable
+    if error_str.contains("executable not found") || error_str.contains("does not exist on disk") {
+      log::info!(
+        "Missing browser detected for {}, triggering download",
+        profile_for_launch.browser
+      );
+      let app_handle_clone = app_handle.clone();
+      let browser_str = profile_for_launch.browser.clone();
+      let version_str = profile_for_launch.version.clone();
+
+      // Trigger download in background
+      tokio::spawn(async move {
+        let downloader = crate::downloader::Downloader::instance();
+        if let Err(download_err) = downloader
+          .download_browser_full(&app_handle_clone, browser_str, version_str)
+          .await
+        {
+          log::error!("Automated background download failed: {}", download_err);
+        }
+      });
+
+      return format!(
+        "Browser {} is not downloaded. Starting download now. Please wait and try again once the download completes.",
+        profile_for_launch.browser
+      );
     }
 
     // Check if this is an architecture compatibility issue

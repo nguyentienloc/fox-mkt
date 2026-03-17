@@ -428,7 +428,8 @@
       "exportFailed": "导出失败",
       "syncFailed": "同步失败",
       "cacheClearFailed": "清除缓存失败",
-      "unknown": "发生未知错误"
+      "unknown": "发生未知错误",
+      "browserNotDownloaded": "浏览器 {{browser}} 尚未下载。正在开始下载。请稍候并在下载完成后重试。"
     },
     "loading": {
       "downloading": "正在下载 {{browser}} {{version}}",

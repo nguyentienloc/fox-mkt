@@ -428,7 +428,8 @@
       "exportFailed": "エクスポートに失敗しました",
       "syncFailed": "同期に失敗しました",
       "cacheClearFailed": "キャッシュのクリアに失敗しました",
-      "unknown": "不明なエラーが発生しました"
+      "unknown": "不明なエラーが発生しました",
+      "browserNotDownloaded": "ブラウザ {{browser}} がダウンロードされていません。ダウンロードを開始します。ダウンロードが完了するまでお待ちいただき、その後もう一度お試しください。"
     },
     "loading": {
       "downloading": "{{browser}} {{version}} をダウンロード中",
