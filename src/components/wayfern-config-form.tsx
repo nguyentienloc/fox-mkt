@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { HiSparkles } from "react-icons/hi2";
 import { LuLock } from "react-icons/lu";
@@ -84,6 +84,55 @@ export function WayfernConfigForm({
     onConfigChange,
   ]);
 
+  // Generate random user agent based on OS
+  const generateRandomUserAgent = useCallback(() => {
+    const os = config.os || currentOS;
+
+    // Random Chrome versions between 120-131
+    const chromeVersion = Math.floor(Math.random() * 12) + 120;
+    const chromePatch = Math.floor(Math.random() * 1000);
+
+    // Random OS versions
+    const windowsVersions = ["10.0", "11.0"];
+    const macVersions = ["10_15_7", "11_0_0", "12_0_0", "13_0_0", "14_0_0"];
+
+    let userAgent = "";
+    let platform = "";
+
+    if (os === "windows") {
+      const winVersion =
+        windowsVersions[Math.floor(Math.random() * windowsVersions.length)];
+      userAgent = `Mozilla/5.0 (Windows NT ${winVersion}; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.0.${chromePatch} Safari/537.36`;
+      platform = "Win32";
+    } else if (os === "macos") {
+      const macVersion =
+        macVersions[Math.floor(Math.random() * macVersions.length)];
+      userAgent = `Mozilla/5.0 (Macintosh; Intel Mac OS X ${macVersion}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.0.${chromePatch} Safari/537.36`;
+      platform = "MacIntel";
+    } else {
+      // Linux, Android, iOS
+      userAgent = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.0.${chromePatch} Safari/537.36`;
+      platform = "Linux x86_64";
+    }
+
+    // Update both fields at once to avoid state update race condition
+    const newConfig = { ...fingerprintConfig, userAgent, platform };
+    setFingerprintConfig(newConfig);
+    try {
+      const jsonString = JSON.stringify(newConfig);
+      onConfigChange("fingerprint", jsonString);
+    } catch (error) {
+      console.error("Failed to serialize fingerprint config:", error);
+    }
+  }, [config.os, currentOS, fingerprintConfig, onConfigChange]);
+
+  // Automatically generate User Agent when creating a new profile
+  useEffect(() => {
+    if (isCreating && !fingerprintConfig.userAgent) {
+      generateRandomUserAgent();
+    }
+  }, [isCreating, fingerprintConfig.userAgent, generateRandomUserAgent]);
+
   useEffect(() => {
     if (config.fingerprint) {
       try {
@@ -133,48 +182,6 @@ export function WayfernConfigForm({
       onConfigChange("geoip", true);
     } else {
       onConfigChange("geoip", false);
-    }
-  };
-
-  // Generate random user agent based on OS
-  const generateRandomUserAgent = () => {
-    const os = config.os || currentOS;
-
-    // Random Chrome versions between 120-131
-    const chromeVersion = Math.floor(Math.random() * 12) + 120;
-    const chromePatch = Math.floor(Math.random() * 1000);
-
-    // Random OS versions
-    const windowsVersions = ["10.0", "11.0"];
-    const macVersions = ["10_15_7", "11_0_0", "12_0_0", "13_0_0", "14_0_0"];
-
-    let userAgent = "";
-    let platform = "";
-
-    if (os === "windows") {
-      const winVersion =
-        windowsVersions[Math.floor(Math.random() * windowsVersions.length)];
-      userAgent = `Mozilla/5.0 (Windows NT ${winVersion}; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.0.${chromePatch} Safari/537.36`;
-      platform = "Win32";
-    } else if (os === "macos") {
-      const macVersion =
-        macVersions[Math.floor(Math.random() * macVersions.length)];
-      userAgent = `Mozilla/5.0 (Macintosh; Intel Mac OS X ${macVersion}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.0.${chromePatch} Safari/537.36`;
-      platform = "MacIntel";
-    } else {
-      // Linux, Android, iOS
-      userAgent = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.0.${chromePatch} Safari/537.36`;
-      platform = "Linux x86_64";
-    }
-
-    // Update both fields at once to avoid state update race condition
-    const newConfig = { ...fingerprintConfig, userAgent, platform };
-    setFingerprintConfig(newConfig);
-    try {
-      const jsonString = JSON.stringify(newConfig);
-      onConfigChange("fingerprint", jsonString);
-    } catch (error) {
-      console.error("Failed to serialize fingerprint config:", error);
     }
   };
 
