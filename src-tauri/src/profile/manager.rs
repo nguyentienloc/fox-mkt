@@ -1,4 +1,4 @@
-use crate::browser::ProxySettings;
+use crate::browser::{create_browser, BrowserType, ProxySettings};
 use crate::camoufox_manager::CamoufoxConfig;
 use crate::events;
 use crate::profile::types::BrowserProfile;
@@ -46,6 +46,49 @@ impl ProfileManager {
     });
     path.push("binaries");
     path
+  }
+
+  fn resolve_import_profile_version(
+    &self,
+    browser: &str,
+    requested_version: Option<&str>,
+  ) -> Result<String, Box<dyn std::error::Error>> {
+    let requested_version = requested_version
+      .map(str::trim)
+      .filter(|version| !version.is_empty())
+      .map(str::to_string);
+
+    let browser_type = BrowserType::from_str(browser)
+      .map_err(|e| format!("Invalid browser type '{browser}' for imported profile: {e}"))?;
+    let browser_impl = create_browser(browser_type);
+    let binaries_dir = self.get_binaries_dir();
+
+    if let Some(version) = &requested_version {
+      if browser_impl.is_version_downloaded(version, &binaries_dir) {
+        return Ok(version.clone());
+      }
+    }
+
+    let mut downloaded_versions =
+      crate::downloaded_browsers_registry::DownloadedBrowsersRegistry::instance()
+        .get_downloaded_versions(browser);
+    downloaded_versions
+      .retain(|version| browser_impl.is_version_downloaded(version, &binaries_dir));
+    downloaded_versions.sort_by(|a, b| crate::api_client::compare_versions(b, a));
+
+    if let Some(version) = downloaded_versions.into_iter().next() {
+      return Ok(version);
+    }
+
+    if let Some(version) = requested_version {
+      return Ok(version);
+    }
+
+    log::warn!(
+      "No downloaded version found for imported browser '{}', falling back to default version placeholder",
+      browser
+    );
+    Ok("v135.0.1-beta.24".to_string())
   }
 
   #[allow(clippy::too_many_arguments)]
@@ -562,8 +605,15 @@ impl ProfileManager {
         Ok(Some(_)) => Ok(true),
         _ => Ok(false),
       }
+    } else if let Some(process_id) = profile.process_id {
+      let system = sysinfo::System::new_all();
+      Ok(
+        system
+          .process(sysinfo::Pid::from(process_id as usize))
+          .is_some(),
+      )
     } else {
-      Ok(profile.process_id.is_some())
+      Ok(false)
     }
   }
 
@@ -595,7 +645,10 @@ impl ProfileManager {
     let existing_profiles = self.list_profiles()?;
 
     for zs in zs_profiles {
-      let profile = crate::profile::zsmkt_import::convert_zsmkt_profile(zs, None);
+      let browser = zs.browser.clone().unwrap_or_else(|| "camoufox".to_string());
+      let resolved_version =
+        self.resolve_import_profile_version(&browser, zs.version.as_deref())?;
+      let profile = crate::profile::zsmkt_import::convert_zsmkt_profile(zs, None, resolved_version);
 
       // Check if profile already exists (by UUID or odoo_id)
       let already_exists = existing_profiles.iter().any(|p| {

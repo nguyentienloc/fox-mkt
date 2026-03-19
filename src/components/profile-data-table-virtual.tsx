@@ -227,6 +227,9 @@ export function ProfilesDataTableVirtual({
   const [stoppingProfiles, setStoppingProfiles] = React.useState<Set<string>>(
     new Set(),
   );
+  const [runningStateOverrides, setRunningStateOverrides] = React.useState<
+    Record<string, boolean>
+  >({});
 
   const { storedProxies } = useProxyEvents();
   const [proxyOverrides, _setProxyOverrides] = React.useState<
@@ -268,9 +271,22 @@ export function ProfilesDataTableVirtual({
     [],
   );
 
+  const effectiveRunningProfiles = React.useMemo(() => {
+    const next = new Set(runningProfiles);
+
+    for (const [profileId, isRunning] of Object.entries(
+      runningStateOverrides,
+    )) {
+      if (isRunning) next.add(profileId);
+      else next.delete(profileId);
+    }
+
+    return next;
+  }, [runningProfiles, runningStateOverrides]);
+
   const browserState = useBrowserState(
     profiles,
-    runningProfiles,
+    effectiveRunningProfiles,
     isUpdating,
     launchingProfiles,
     stoppingProfiles,
@@ -298,8 +314,8 @@ export function ProfilesDataTableVirtual({
   }, [browserState.isClient]);
 
   const runningProfileIds = React.useMemo(
-    () => Array.from(runningProfiles).sort(),
-    [runningProfiles],
+    () => Array.from(effectiveRunningProfiles).sort(),
+    [effectiveRunningProfiles],
   );
   const runningCount = runningProfileIds.length;
 
@@ -356,6 +372,12 @@ export function ProfilesDataTableVirtual({
               next.delete(id);
               return next;
             });
+            setRunningStateOverrides((prev) => {
+              if (!(id in prev)) return prev;
+              const next = { ...prev };
+              delete next[id];
+              return next;
+            });
           },
         );
       } catch (error) {
@@ -366,6 +388,97 @@ export function ProfilesDataTableVirtual({
       if (unlisten) unlisten();
     };
   }, [browserState.isClient]);
+
+  React.useEffect(() => {
+    const validProfileIds = new Set(profiles.map((profile) => profile.id));
+    setRunningStateOverrides((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      for (const profileId of Object.keys(next)) {
+        if (!validProfileIds.has(profileId)) {
+          delete next[profileId];
+          changed = true;
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [profiles]);
+
+  const handleLaunchProfileAction = React.useCallback(
+    async (profile: BrowserProfile) => {
+      setStoppingProfiles((prev) => {
+        if (!prev.has(profile.id)) return prev;
+        const next = new Set(prev);
+        next.delete(profile.id);
+        return next;
+      });
+      setLaunchingProfiles((prev) => new Set(prev).add(profile.id));
+
+      try {
+        await onLaunchProfile(profile);
+        setRunningStateOverrides((prev) => ({ ...prev, [profile.id]: true }));
+        setLaunchingProfiles((prev) => {
+          if (!prev.has(profile.id)) return prev;
+          const next = new Set(prev);
+          next.delete(profile.id);
+          return next;
+        });
+      } catch {
+        setLaunchingProfiles((prev) => {
+          if (!prev.has(profile.id)) return prev;
+          const next = new Set(prev);
+          next.delete(profile.id);
+          return next;
+        });
+        setRunningStateOverrides((prev) => {
+          if (!(profile.id in prev)) return prev;
+          const next = { ...prev };
+          delete next[profile.id];
+          return next;
+        });
+      }
+    },
+    [onLaunchProfile],
+  );
+
+  const handleStopProfileAction = React.useCallback(
+    async (profile: BrowserProfile) => {
+      setLaunchingProfiles((prev) => {
+        if (!prev.has(profile.id)) return prev;
+        const next = new Set(prev);
+        next.delete(profile.id);
+        return next;
+      });
+      setStoppingProfiles((prev) => new Set(prev).add(profile.id));
+
+      try {
+        await onKillProfile(profile);
+        setRunningStateOverrides((prev) => ({ ...prev, [profile.id]: false }));
+        setStoppingProfiles((prev) => {
+          if (!prev.has(profile.id)) return prev;
+          const next = new Set(prev);
+          next.delete(profile.id);
+          return next;
+        });
+      } catch {
+        setStoppingProfiles((prev) => {
+          if (!prev.has(profile.id)) return prev;
+          const next = new Set(prev);
+          next.delete(profile.id);
+          return next;
+        });
+        setRunningStateOverrides((prev) => {
+          if (!(profile.id in prev)) return prev;
+          const next = { ...prev };
+          delete next[profile.id];
+          return next;
+        });
+      }
+    },
+    [onKillProfile],
+  );
 
   const handleSortingChange = React.useCallback(
     (updater: React.SetStateAction<SortingState>) => {
@@ -444,7 +557,8 @@ export function ProfilesDataTableVirtual({
             profiles
               .filter((profile) => {
                 const isRunning =
-                  browserState.isClient && runningProfiles.has(profile.id);
+                  browserState.isClient &&
+                  effectiveRunningProfiles.has(profile.id);
                 const isLaunching = launchingProfiles.has(profile.id);
                 const isStopping = stoppingProfiles.has(profile.id);
                 const isBrowserUpdating = isUpdating(profile.browser);
@@ -465,7 +579,7 @@ export function ProfilesDataTableVirtual({
       profiles,
       onSelectedProfilesChange,
       browserState.isClient,
-      runningProfiles,
+      effectiveRunningProfiles,
       launchingProfiles,
       stoppingProfiles,
       isUpdating,
@@ -478,7 +592,7 @@ export function ProfilesDataTableVirtual({
       selectableCount: profiles.length,
       showCheckboxes,
       isClient: browserState.isClient,
-      runningProfiles,
+      runningProfiles: effectiveRunningProfiles,
       launchingProfiles,
       stoppingProfiles,
       isUpdating,
@@ -502,8 +616,8 @@ export function ProfilesDataTableVirtual({
       isRenamingSaving,
       setLaunchingProfiles,
       setStoppingProfiles,
-      onKillProfile,
-      onLaunchProfile,
+      onKillProfile: handleStopProfileAction,
+      onLaunchProfile: handleLaunchProfileAction,
       onAssignProfilesToGroup,
       onCloneProfile,
       onConfigureCamoufox,
@@ -526,7 +640,7 @@ export function ProfilesDataTableVirtual({
       profiles,
       showCheckboxes,
       browserState,
-      runningProfiles,
+      effectiveRunningProfiles,
       launchingProfiles,
       stoppingProfiles,
       isUpdating,
@@ -539,8 +653,8 @@ export function ProfilesDataTableVirtual({
       profileToRename,
       newProfileName,
       isRenamingSaving,
-      onKillProfile,
-      onLaunchProfile,
+      handleStopProfileAction,
+      handleLaunchProfileAction,
       onAssignProfilesToGroup,
       onCloneProfile,
       onConfigureCamoufox,
@@ -619,6 +733,21 @@ export function ProfilesDataTableVirtual({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Đang đồng bộ dữ liệu...</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+
+          if (isLaunching || isStopping) {
+            return (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex justify-center items-center w-4 h-4 text-primary animate-spin">
+                    <LuLoader className="w-4 h-4" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Profile is busy</p>
                 </TooltipContent>
               </Tooltip>
             );

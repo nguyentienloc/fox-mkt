@@ -891,7 +891,7 @@ pub fn run() {
       let _app_handle_cleanup = app.handle().clone();
       tauri::async_runtime::spawn(async move {
         let camoufox_manager = crate::camoufox_manager::CamoufoxManager::instance();
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(2));
 
         loop {
           interval.tick().await;

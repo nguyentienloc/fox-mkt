@@ -38,6 +38,7 @@ pub struct ZsMktProfile {
   pub username: Option<String>,
   pub password: Option<String>,
   pub browser: Option<String>,
+  pub version: Option<String>,
 }
 
 /// Convert a zs-mkt proxy to a Foxia proxy settings.
@@ -59,7 +60,11 @@ pub fn convert_zsmkt_proxy(zs_proxy: &ZsMktProxy) -> crate::browser::ProxySettin
 }
 
 /// Convert a zs-mkt profile to a Foxia profile.
-pub fn convert_zsmkt_profile(zs_profile: ZsMktProfile, proxy_id: Option<String>) -> BrowserProfile {
+pub fn convert_zsmkt_profile(
+  zs_profile: ZsMktProfile,
+  proxy_id: Option<String>,
+  resolved_version: String,
+) -> BrowserProfile {
   // Try to parse as UUID first, otherwise create deterministic UUID from odoo_id
   let id = Uuid::parse_str(&zs_profile.id).unwrap_or_else(|_| {
     // Create UUID v5 from odoo_id for deterministic ID generation
@@ -107,8 +112,7 @@ pub fn convert_zsmkt_profile(zs_profile: ZsMktProfile, proxy_id: Option<String>)
     ..Default::default()
   };
 
-  // Determine the version.
-  let version = "v135.0.1-beta.24".to_string();
+  let version = resolved_version;
 
   let created_at = zs_profile.created_at_str.and_then(|s| {
     log::info!("Parsing createdAt: '{}'", s);

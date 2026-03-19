@@ -21,6 +21,7 @@ import { WayfernConfigForm } from "@/components/wayfern-config-form";
 
 import { useBrowserDownload } from "@/hooks/use-browser-download";
 import { getBrowserIcon } from "@/lib/browser-utils";
+import { showCleanErrorToast } from "@/lib/error-utils";
 import type {
   BrowserReleaseTypes,
   CamoufoxConfig,
@@ -446,6 +447,7 @@ export function CreateProfileDialog({
       handleClose();
     } catch (error) {
       console.error("Failed to create profile:", error);
+      showCleanErrorToast(error);
     } finally {
       setIsCreating(false);
     }

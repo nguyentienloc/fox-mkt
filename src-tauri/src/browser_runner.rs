@@ -2100,163 +2100,145 @@ impl BrowserRunner {
     }
 
     // For non-camoufox/wayfern browsers, use the existing logic
-    let pid = if let Some(pid) = profile.process_id {
-      // First verify the stored PID is still valid and belongs to our profile
+    let profiles_dir = self.profile_manager.get_profiles_dir();
+    let profile_data_path = profile.get_profile_data_path(&profiles_dir);
+    let profile_path_str = profile_data_path.to_string_lossy().to_string();
+
+    let mut pids_to_kill = self.find_browser_processes_by_profile(profile);
+
+    if let Some(stored_pid) = profile.process_id {
       let system = System::new_all();
-      if let Some(process) = system.process(sysinfo::Pid::from(pid as usize)) {
-        let cmd = process.cmd();
-        let exe_name = process.name().to_string_lossy();
+      if let Some(process) = system.process(sysinfo::Pid::from(stored_pid as usize)) {
+        let cmd: Vec<String> = process
+          .cmd()
+          .iter()
+          .filter_map(|arg| arg.to_str().map(str::to_owned))
+          .collect();
+        let exe_name = process.name().to_string_lossy().to_string();
 
-        // Verify this process is actually our browser
-        let is_correct_browser = match profile.browser.as_str() {
-          "firefox" => {
-            exe_name.contains("firefox")
-              && !exe_name.contains("developer")
-              && !exe_name.contains("camoufox")
-          }
-          "firefox-developer" => {
-            // More flexible detection for Firefox Developer Edition
-            (exe_name.contains("firefox") && exe_name.contains("developer"))
-              || (exe_name.contains("firefox")
-                && cmd.iter().any(|arg| {
-                  let arg_str = arg.to_str().unwrap_or("");
-                  arg_str.contains("Developer")
-                    || arg_str.contains("developer")
-                    || arg_str.contains("FirefoxDeveloperEdition")
-                    || arg_str.contains("firefox-developer")
-                }))
-              || exe_name == "firefox" // Firefox Developer might just show as "firefox"
-          }
-          "zen" => exe_name.contains("zen"),
-          "chromium" | "orbita" => exe_name.contains("chromium") || exe_name.contains("chrome"),
-          "brave" => exe_name.contains("brave") || exe_name.contains("Brave"),
-          _ => false,
-        };
-
-        if is_correct_browser {
-          // Verify profile path match
-          let profiles_dir = self.profile_manager.get_profiles_dir();
-          let profile_data_path = profile.get_profile_data_path(&profiles_dir);
-          let profile_data_path_str = profile_data_path.to_string_lossy();
-
-          let profile_path_match = if matches!(
-            profile.browser.as_str(),
-            "firefox" | "firefox-developer" | "zen"
-          ) {
-            // Firefox-based browsers: look for -profile argument followed by path
-            let mut found_profile_arg = false;
-            for (i, arg) in cmd.iter().enumerate() {
-              if let Some(arg_str) = arg.to_str() {
-                if arg_str == "-profile" && i + 1 < cmd.len() {
-                  if let Some(next_arg) = cmd.get(i + 1).and_then(|a| a.to_str()) {
-                    if next_arg == profile_data_path_str {
-                      found_profile_arg = true;
-                      break;
-                    }
-                  }
-                }
-                // Also check for combined -profile=path format
-                if arg_str == format!("-profile={profile_data_path_str}") {
-                  found_profile_arg = true;
-                  break;
-                }
-                // Check if the argument is the profile path directly
-                if arg_str == profile_data_path_str {
-                  found_profile_arg = true;
-                  break;
-                }
-              }
-            }
-            found_profile_arg
-          } else {
-            // Chromium-based browsers: look for --user-data-dir argument
-            cmd.iter().any(|s| {
-              if let Some(arg) = s.to_str() {
-                arg == format!("--user-data-dir={profile_data_path_str}")
-                  || arg == profile_data_path_str
-              } else {
-                false
-              }
-            })
-          };
-
-          if profile_path_match {
-            log::info!(
-              "Verified stored PID {} is valid for profile {} (ID: {})",
-              pid,
-              profile.name,
-              profile.id
-            );
-            pid
-          } else {
-            log::info!("Stored PID {} doesn't match profile path for {} (ID: {}), searching for correct process", pid, profile.name, profile.id);
-            // Fall through to search for correct process
-            self.find_browser_process_by_profile(profile)?
+        if Self::process_matches_browser(&profile.browser, &exe_name, &cmd)
+          && Self::process_matches_profile_path(&profile.browser, &cmd, &profile_path_str)
+        {
+          if !pids_to_kill.contains(&stored_pid) {
+            pids_to_kill.push(stored_pid);
           }
         } else {
-          log::info!("Stored PID {} doesn't match browser type for {} (ID: {}), searching for correct process", pid, profile.name, profile.id);
-          // Fall through to search for correct process
-          self.find_browser_process_by_profile(profile)?
+          log::info!(
+            "Stored PID {} does not match active process info for profile {} (ID: {})",
+            stored_pid,
+            profile.name,
+            profile.id
+          );
         }
       } else {
         log::info!(
-          "Stored PID {} is no longer valid for profile {} (ID: {}), searching for correct process",
-          pid,
+          "Stored PID {} is no longer valid for profile {} (ID: {})",
+          stored_pid,
           profile.name,
           profile.id
         );
-        // Fall through to search for correct process
-        self.find_browser_process_by_profile(profile)?
       }
-    } else {
-      // No stored PID, search for the process
-      self.find_browser_process_by_profile(profile)?
-    };
-
-    log::info!("Attempting to kill browser process with PID: {pid}");
-
-    // Stop any associated proxy first
-    if let Err(e) = PROXY_MANAGER.stop_proxy(app_handle.clone(), pid).await {
-      log::warn!("Warning: Failed to stop proxy for PID {pid}: {e}");
     }
 
-    #[cfg(target_os = "macos")]
-    {
-      let profiles_dir = self.profile_manager.get_profiles_dir();
-      let profile_data_path = profile.get_profile_data_path(&profiles_dir);
-      let profile_path_str = profile_data_path.to_string_lossy().to_string();
-      platform_browser::macos::kill_browser_process_impl(pid, Some(&profile_path_str)).await?;
-    }
+    pids_to_kill.sort_unstable();
+    pids_to_kill.dedup();
 
-    #[cfg(target_os = "windows")]
-    platform_browser::windows::kill_browser_process_impl(pid).await?;
-
-    #[cfg(target_os = "linux")]
-    platform_browser::linux::kill_browser_process_impl(pid).await?;
-
-    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
-    return Err("Unsupported platform".into());
-
-    let system = System::new_all();
-    if system.process(sysinfo::Pid::from(pid as usize)).is_some() {
-      log::error!(
-        "Browser process {} is still running after kill attempt for profile: {} (ID: {})",
-        pid,
-        profile.name,
-        profile.id
-      );
+    if pids_to_kill.is_empty() {
       return Err(
         format!(
-          "Browser process {} is still running after kill attempt",
-          pid
+          "No running {} browser process found for profile: {} (ID: {})",
+          profile.browser, profile.name, profile.id
         )
         .into(),
       );
     }
 
     log::info!(
-      "Verified browser process {} is terminated for profile: {} (ID: {})",
-      pid,
+      "Attempting to kill browser processes {:?} for profile: {} (ID: {})",
+      pids_to_kill,
+      profile.name,
+      profile.id
+    );
+
+    let profile_id_str = profile.id.to_string();
+    if let Err(e) = PROXY_MANAGER
+      .stop_proxy_by_profile_id(app_handle.clone(), &profile_id_str)
+      .await
+    {
+      log::warn!(
+        "Warning: Failed to stop proxy for profile {} before kill: {e}",
+        profile_id_str
+      );
+    }
+
+    for &pid in &pids_to_kill {
+      if let Err(e) = PROXY_MANAGER.stop_proxy(app_handle.clone(), pid).await {
+        log::warn!("Warning: Failed to stop proxy for PID {pid}: {e}");
+      }
+
+      #[cfg(target_os = "macos")]
+      {
+        platform_browser::macos::kill_browser_process_impl(pid, Some(&profile_path_str)).await?;
+      }
+
+      #[cfg(target_os = "windows")]
+      {
+        platform_browser::windows::kill_browser_process_impl(pid).await?;
+      }
+
+      #[cfg(target_os = "linux")]
+      {
+        platform_browser::linux::kill_browser_process_impl(pid).await?;
+      }
+
+      #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+      {
+        return Err("Unsupported platform".into());
+      }
+    }
+
+    let remaining_matching_pids = self.find_browser_processes_by_profile(profile);
+    if !remaining_matching_pids.is_empty() {
+      log::error!(
+        "Browser processes {:?} are still running after kill attempt for profile: {} (ID: {})",
+        remaining_matching_pids,
+        profile.name,
+        profile.id
+      );
+      return Err(
+        format!(
+          "Browser processes {:?} are still running after kill attempt",
+          remaining_matching_pids
+        )
+        .into(),
+      );
+    }
+
+    let system = System::new_all();
+    let still_running_pids: Vec<u32> = pids_to_kill
+      .iter()
+      .copied()
+      .filter(|pid| system.process(sysinfo::Pid::from(*pid as usize)).is_some())
+      .collect();
+    if !still_running_pids.is_empty() {
+      log::error!(
+        "Killed browser processes {:?} are still present for profile: {} (ID: {})",
+        still_running_pids,
+        profile.name,
+        profile.id
+      );
+      return Err(
+        format!(
+          "Browser processes {:?} are still running after kill attempt",
+          still_running_pids
+        )
+        .into(),
+      );
+    }
+
+    log::info!(
+      "Verified browser processes {:?} are terminated for profile: {} (ID: {})",
+      pids_to_kill,
       profile.name,
       profile.id
     );
@@ -2362,121 +2344,120 @@ impl BrowserRunner {
     Ok(())
   }
 
-  /// Helper method to find browser process by profile path
-  fn find_browser_process_by_profile(
-    &self,
-    profile: &BrowserProfile,
-  ) -> Result<u32, Box<dyn std::error::Error + Send + Sync>> {
+  fn process_matches_browser(browser: &str, exe_name: &str, cmd: &[String]) -> bool {
+    let exe_name_lower = exe_name.to_lowercase();
+
+    match browser {
+      "firefox" => {
+        exe_name_lower.contains("firefox")
+          && !exe_name_lower.contains("developer")
+          && !exe_name_lower.contains("camoufox")
+      }
+      "firefox-developer" => {
+        (exe_name_lower.contains("firefox") && exe_name_lower.contains("developer"))
+          || (exe_name_lower.contains("firefox")
+            && cmd.iter().any(|arg| {
+              arg.contains("Developer")
+                || arg.contains("developer")
+                || arg.contains("FirefoxDeveloperEdition")
+                || arg.contains("firefox-developer")
+            }))
+          || exe_name_lower == "firefox"
+      }
+      "zen" => exe_name_lower.contains("zen"),
+      "chromium" => exe_name_lower.contains("chromium") || exe_name_lower.contains("chrome"),
+      "brave" => exe_name_lower.contains("brave"),
+      "orbita" => {
+        exe_name_lower.contains("orbita")
+          || exe_name_lower.contains("chromium")
+          || exe_name_lower.contains("chrome")
+      }
+      "wayfern" => {
+        exe_name_lower.contains("wayfern")
+          || exe_name_lower.contains("chromium")
+          || exe_name_lower.contains("chrome")
+      }
+      _ => false,
+    }
+  }
+
+  fn process_matches_profile_path(browser: &str, cmd: &[String], profile_path: &str) -> bool {
+    if matches!(browser, "firefox" | "firefox-developer" | "zen") {
+      let mut found_profile_arg = false;
+      for (index, arg) in cmd.iter().enumerate() {
+        if arg == "-profile" && index + 1 < cmd.len() && cmd[index + 1] == profile_path {
+          found_profile_arg = true;
+          break;
+        }
+
+        if arg == &format!("-profile={profile_path}") || arg == profile_path {
+          found_profile_arg = true;
+          break;
+        }
+      }
+
+      return found_profile_arg;
+    }
+
+    cmd.iter().any(|arg| {
+      arg == &format!("--user-data-dir={profile_path}")
+        || arg == profile_path
+        || arg
+          .strip_prefix("--user-data-dir=")
+          .is_some_and(|value| value == profile_path)
+    })
+  }
+
+  fn find_browser_processes_by_profile(&self, profile: &BrowserProfile) -> Vec<u32> {
     let system = System::new_all();
     let profiles_dir = self.profile_manager.get_profiles_dir();
     let profile_data_path = profile.get_profile_data_path(&profiles_dir);
-    let profile_data_path_str = profile_data_path.to_string_lossy();
+    let profile_data_path_str = profile_data_path.to_string_lossy().to_string();
 
     log::info!(
-      "Searching for {} browser process with profile path: {}",
+      "Searching for {} browser processes with profile path: {}",
       profile.browser,
       profile_data_path_str
     );
 
+    let mut matching_pids = Vec::new();
+
     for (pid, process) in system.processes() {
-      let cmd = process.cmd();
+      let cmd: Vec<String> = process
+        .cmd()
+        .iter()
+        .filter_map(|arg| arg.to_str().map(str::to_owned))
+        .collect();
       if cmd.is_empty() {
         continue;
       }
 
-      // Check if this is the right browser executable first
-      let exe_name = process.name().to_string_lossy().to_lowercase();
-      let is_correct_browser = match profile.browser.as_str() {
-        "firefox" => {
-          exe_name.contains("firefox")
-            && !exe_name.contains("developer")
-            && !exe_name.contains("camoufox")
-        }
-        "firefox-developer" => {
-          // More flexible detection for Firefox Developer Edition
-          (exe_name.contains("firefox") && exe_name.contains("developer"))
-            || (exe_name.contains("firefox")
-              && cmd.iter().any(|arg| {
-                let arg_str = arg.to_str().unwrap_or("");
-                arg_str.contains("Developer")
-                  || arg_str.contains("developer")
-                  || arg_str.contains("FirefoxDeveloperEdition")
-                  || arg_str.contains("firefox-developer")
-              }))
-            || exe_name == "firefox" // Firefox Developer might just show as "firefox"
-        }
-        "zen" => exe_name.contains("zen"),
-        "chromium" | "orbita" => exe_name.contains("chromium") || exe_name.contains("chrome"),
-        "brave" => exe_name.contains("brave") || exe_name.contains("Brave"),
-        _ => false,
-      };
-
-      if !is_correct_browser {
+      let exe_name = process.name().to_string_lossy().to_string();
+      if !Self::process_matches_browser(&profile.browser, &exe_name, &cmd) {
         continue;
       }
 
-      // Check for profile path match with improved logic
-      let profile_path_match = if matches!(
-        profile.browser.as_str(),
-        "firefox" | "firefox-developer" | "zen"
-      ) {
-        // Firefox-based browsers: look for -profile argument followed by path
-        let mut found_profile_arg = false;
-        for (i, arg) in cmd.iter().enumerate() {
-          if let Some(arg_str) = arg.to_str() {
-            if arg_str == "-profile" && i + 1 < cmd.len() {
-              if let Some(next_arg) = cmd.get(i + 1).and_then(|a| a.to_str()) {
-                if next_arg == profile_data_path_str {
-                  found_profile_arg = true;
-                  break;
-                }
-              }
-            }
-            // Also check for combined -profile=path format
-            if arg_str == format!("-profile={profile_data_path_str}") {
-              found_profile_arg = true;
-              break;
-            }
-            // Check if the argument is the profile path directly
-            if arg_str == profile_data_path_str {
-              found_profile_arg = true;
-              break;
-            }
-          }
-        }
-        found_profile_arg
-      } else {
-        // Chromium-based browsers: look for --user-data-dir argument
-        cmd.iter().any(|s| {
-          if let Some(arg) = s.to_str() {
-            arg == format!("--user-data-dir={profile_data_path_str}")
-              || arg == profile_data_path_str
-          } else {
-            false
-          }
-        })
-      };
-
-      if profile_path_match {
-        let pid_u32 = pid.as_u32();
-        log::info!(
-          "Found matching {} browser process with PID: {} for profile: {} (ID: {})",
-          profile.browser,
-          pid_u32,
-          profile.name,
-          profile.id
-        );
-        return Ok(pid_u32);
+      if !Self::process_matches_profile_path(&profile.browser, &cmd, &profile_data_path_str) {
+        continue;
       }
+
+      matching_pids.push(pid.as_u32());
     }
 
-    Err(
-      format!(
-        "No running {} browser process found for profile: {} (ID: {})",
-        profile.browser, profile.name, profile.id
-      )
-      .into(),
-    )
+    matching_pids.sort_unstable();
+    matching_pids.dedup();
+
+    if !matching_pids.is_empty() {
+      log::info!(
+        "Found matching {} browser processes {:?} for profile: {} (ID: {})",
+        profile.browser,
+        matching_pids,
+        profile.name,
+        profile.id
+      );
+    }
+
+    matching_pids
   }
 
   pub async fn open_url_with_profile(

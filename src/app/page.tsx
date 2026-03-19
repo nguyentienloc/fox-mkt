@@ -564,6 +564,7 @@ export default function Home() {
           },
         });
       } else showErrorToast(`Lỗi: ${err}`);
+      throw err;
     }
   };
 
@@ -610,7 +611,7 @@ export default function Home() {
           platform: cp.platform || undefined,
         },
         status: "synced",
-        version: "v135.0.1-beta.24",
+        version: typeof cp.version === "string" ? cp.version : undefined,
         proxy:
           cp.proxy_ids && cp.proxy_ids.length > 0
             ? {
@@ -630,9 +631,27 @@ export default function Home() {
       };
       console.log("Calling import_zsmkt_profiles_batch with:", zs);
       await invoke("import_zsmkt_profiles_batch", { zsProfiles: [zs] });
+
+      const importedProfiles = await invoke<BrowserProfile[]>(
+        "list_browser_profiles",
+      );
+      const importedProfile = importedProfiles.find(
+        (profile) => profile.odoo_id === odooId,
+      );
+
       console.log("Import completed, reloading odoo profiles...");
       await loadOdooProfiles();
-      showSuccessToast("Xong!");
+      toast.dismiss(toastId);
+
+      if ((cp.profileUrl || cp.profile_url) && importedProfile) {
+        await handleDownloadWithProgress(
+          importedProfile.id,
+          cp.profileUrl || cp.profile_url,
+          cp.name,
+        );
+      } else {
+        showSuccessToast("Xong!");
+      }
     } catch (error: any) {
       console.error("Import error:", error);
       toast.dismiss(toastId);
@@ -821,13 +840,9 @@ export default function Home() {
               onKillProfile={async (p) => {
                 try {
                   await invoke("kill_browser_profile", { profile: p });
-                  // Đợi 1 giây để browser giải phóng file hoàn toàn
-                  // allowCreate=false: khi dừng browser không tạo mới profile trên Odoo
-                  setTimeout(() => {
-                    void handleUploadToOdoo(p as any, false);
-                  }, 1500);
                 } catch (err) {
                   showErrorToast(`Lỗi khi dừng: ${err}`);
+                  throw err;
                 }
               }}
               onCloneProfile={async (p) => {

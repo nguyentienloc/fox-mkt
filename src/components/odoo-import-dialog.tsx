@@ -86,7 +86,10 @@ export function OdooImportDialog({ isOpen, onClose }: OdooImportDialogProps) {
             platform: typeof p.platform === "string" ? p.platform : undefined,
           },
           status: "synced",
-          version: "v135.0.1-beta.24",
+          version:
+            typeof (p as any).version === "string"
+              ? (p as any).version
+              : undefined,
           localPath:
             getString(p.local_path) ||
             `/profiles/${p.name.toLowerCase().replace(/\s+/g, "_")}`,
