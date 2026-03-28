@@ -14,7 +14,7 @@ env:
 jobs:
   security-scan:
     name: Security Vulnerability Scan
-    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@c5996e0193a3df57d695c1b8a1dec2a4c62e8730" # v2.3.3
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@c51854704019a247608d928f370c98740469d4b5" # v2.3.5
     with:
       scan-args: |-
         -r
@@ -147,7 +147,7 @@ jobs:
           fi
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa #v0.6.1
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 #v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
