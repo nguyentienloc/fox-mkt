@@ -968,7 +968,7 @@ pub fn run() {
       // Periodically broadcast browser running status to the frontend
       let app_handle_status = app.handle().clone();
       tauri::async_runtime::spawn(async move {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(2));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut last_running_states: std::collections::HashMap<String, bool> =
           std::collections::HashMap::new();
