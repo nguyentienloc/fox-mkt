@@ -255,22 +255,16 @@ pub fn parse_openvpn_config(content: &str) -> Result<OpenVpnConfig, VpnError> {
           protocol = parts[3].to_string();
         }
       }
-      "proto" => {
-        if parts.len() >= 2 {
-          protocol = parts[1].to_string();
+      "proto" if parts.len() >= 2 => {
+        protocol = parts[1].to_string();
+      }
+      "port" if parts.len() >= 2 => {
+        if let Ok(port) = parts[1].parse() {
+          remote_port = port;
         }
       }
-      "port" => {
-        if parts.len() >= 2 {
-          if let Ok(port) = parts[1].parse() {
-            remote_port = port;
-          }
-        }
-      }
-      "dev" => {
-        if parts.len() >= 2 {
-          dev_type = parts[1].to_string();
-        }
+      "dev" if parts.len() >= 2 => {
+        dev_type = parts[1].to_string();
       }
       _ => {}
     }
