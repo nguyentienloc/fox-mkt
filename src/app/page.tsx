@@ -475,6 +475,7 @@ export default function Home() {
       all: mergedProfiles.length,
       camoufox: 0,
       wayfern: 0,
+      cloakbrowser: 0,
       cloud: 0,
     };
 
@@ -486,6 +487,8 @@ export default function Home() {
           counts.camoufox++;
         } else if (p.browser === "wayfern" || p.browser === "chromium") {
           counts.wayfern++;
+        } else if (p.browser === "cloakbrowser") {
+          counts.cloakbrowser++;
         }
       }
     }
@@ -545,6 +548,7 @@ export default function Home() {
   const launchProfile = async (profile: BrowserProfile) => {
     try {
       await invoke("launch_browser_profile", { profile });
+      setOpenedProfileIds((prev) => new Set(prev).add(profile.id));
     } catch (err: any) {
       const errorStr = err.toString();
       if (
@@ -570,99 +574,219 @@ export default function Home() {
 
   const handleImportCloudProfile = async (cp: any) => {
     const toastId = toast.loading("Đang nhập...");
-    try {
-      // FIX: Lấy đúng Odoo ID thực sự, bỏ tiền tố "cloud-" nếu có
-      const odooId = String(cp.odoo_id || cp.id).replace("cloud-", "");
-      console.log("=== DEBUG: Importing cloud profile ===");
-      console.log("Full cp object:", JSON.stringify(cp, null, 2));
-      console.log("browser:", cp.browser, "typeof:", typeof cp.browser);
-      console.log("username:", cp.username, "typeof:", typeof cp.username);
-      console.log("password:", cp.password, "typeof:", typeof cp.password);
-      console.log("odoo_id:", odooId);
+    const loadingProfileId = String(cp.id);
+    return withUploadingProfile(loadingProfileId, async () => {
+      try {
+        // FIX: Lấy đúng Odoo ID thực sự, bỏ tiền tố "cloud-" nếu có
+        const odooId = String(cp.odoo_id || cp.id).replace("cloud-", "");
+        console.log("=== DEBUG: Importing cloud profile ===");
+        console.log("Full cp object:", JSON.stringify(cp, null, 2));
+        console.log("browser:", cp.browser, "typeof:", typeof cp.browser);
+        console.log("username:", cp.username, "typeof:", typeof cp.username);
+        console.log("password:", cp.password, "typeof:", typeof cp.password);
+        console.log("odoo_id:", odooId);
 
-      const existingProfile = profiles.find((p) => p.odoo_id === odooId);
+        const existingProfile = profiles.find((p) => p.odoo_id === odooId);
 
-      if (existingProfile) {
-        console.log("Profile already exists locally:", existingProfile.name);
-        if (cp.profileUrl || cp.profile_url) {
-          toast.dismiss(toastId);
+        if (existingProfile) {
+          console.log("Profile already exists locally:", existingProfile.name);
+          if (cp.profileUrl || cp.profile_url) {
+            toast.dismiss(toastId);
+            await handleDownloadWithProgress(
+              existingProfile.id,
+              cp.profileUrl || cp.profile_url,
+              cp.name,
+            );
+          } else {
+            toast.dismiss(toastId);
+            showErrorToast("Profile không có dữ liệu để tải về");
+          }
+          return;
+        }
+
+        console.log("Profile doesn't exist, importing...");
+        // Profile doesn't exist, import it
+        const createdAt = cp.createdAt || cp.create_date;
+        const zs = {
+          id: odooId, // Đảm bảo dùng ID sạch sẽ
+          name: cp.name,
+          fingerprint: {
+            userAgent: cp.userAgent || cp.user_agent || "",
+            timezone: cp.timezone || "Asia/Ho_Chi_Minh",
+            language: cp.language || "vi-VN",
+            platform: cp.platform || undefined,
+          },
+          status: "synced",
+          version: typeof cp.version === "string" ? cp.version : undefined,
+          proxy:
+            cp.proxy_ids && cp.proxy_ids.length > 0
+              ? {
+                  protocol: cp.proxy_ids[0].giaothuc,
+                  host: cp.proxy_ids[0].ip,
+                  port: cp.proxy_ids[0].port,
+                  username: cp.proxy_ids[0].tendangnhap,
+                  password: cp.proxy_ids[0].matkhau,
+                }
+              : undefined,
+          createdAt,
+          localPath: cp.localPath || cp.local_path || "S3 Cloud", // Ghi rõ nguồn tải
+          profileUrl: cp.profileUrl || cp.profile_url || undefined,
+          username: typeof cp.username === "string" ? cp.username : undefined,
+          password: typeof cp.password === "string" ? cp.password : undefined,
+          browser: typeof cp.browser === "string" ? cp.browser : undefined,
+        };
+        console.log("Calling import_zsmkt_profiles_batch with:", zs);
+        await invoke("import_zsmkt_profiles_batch", { zsProfiles: [zs] });
+
+        const importedProfiles = await invoke<BrowserProfile[]>(
+          "list_browser_profiles",
+        );
+        const importedProfile = importedProfiles.find(
+          (profile) => profile.odoo_id === odooId,
+        );
+
+        console.log("Import completed, reloading odoo profiles...");
+        await loadOdooProfiles();
+        toast.dismiss(toastId);
+
+        if ((cp.profileUrl || cp.profile_url) && importedProfile) {
           await handleDownloadWithProgress(
-            existingProfile.id,
+            importedProfile.id,
             cp.profileUrl || cp.profile_url,
             cp.name,
           );
+          markProfileDirty(importedProfile.id);
+          await maybeTriggerSync(importedProfile);
         } else {
-          toast.dismiss(toastId);
-          showErrorToast("Profile không có dữ liệu để tải về");
+          showSuccessToast("Xong!");
         }
-        return;
+      } catch (error: any) {
+        console.error("Import error:", error);
+        toast.dismiss(toastId);
+        showErrorToast(`Lỗi: ${error}`);
+      } finally {
+        toast.dismiss(toastId);
       }
-
-      console.log("Profile doesn't exist, importing...");
-      // Profile doesn't exist, import it
-      const createdAt = cp.createdAt || cp.create_date;
-      const zs = {
-        id: odooId, // Đảm bảo dùng ID sạch sẽ
-        name: cp.name,
-        fingerprint: {
-          userAgent: cp.userAgent || cp.user_agent || "",
-          timezone: cp.timezone || "Asia/Ho_Chi_Minh",
-          language: cp.language || "vi-VN",
-          platform: cp.platform || undefined,
-        },
-        status: "synced",
-        version: typeof cp.version === "string" ? cp.version : undefined,
-        proxy:
-          cp.proxy_ids && cp.proxy_ids.length > 0
-            ? {
-                protocol: cp.proxy_ids[0].giaothuc,
-                host: cp.proxy_ids[0].ip,
-                port: cp.proxy_ids[0].port,
-                username: cp.proxy_ids[0].tendangnhap,
-                password: cp.proxy_ids[0].matkhau,
-              }
-            : undefined,
-        createdAt,
-        localPath: cp.localPath || cp.local_path || "S3 Cloud", // Ghi rõ nguồn tải
-        profileUrl: cp.profileUrl || cp.profile_url || undefined,
-        username: typeof cp.username === "string" ? cp.username : undefined,
-        password: typeof cp.password === "string" ? cp.password : undefined,
-        browser: typeof cp.browser === "string" ? cp.browser : undefined,
-      };
-      console.log("Calling import_zsmkt_profiles_batch with:", zs);
-      await invoke("import_zsmkt_profiles_batch", { zsProfiles: [zs] });
-
-      const importedProfiles = await invoke<BrowserProfile[]>(
-        "list_browser_profiles",
-      );
-      const importedProfile = importedProfiles.find(
-        (profile) => profile.odoo_id === odooId,
-      );
-
-      console.log("Import completed, reloading odoo profiles...");
-      await loadOdooProfiles();
-      toast.dismiss(toastId);
-
-      if ((cp.profileUrl || cp.profile_url) && importedProfile) {
-        await handleDownloadWithProgress(
-          importedProfile.id,
-          cp.profileUrl || cp.profile_url,
-          cp.name,
-        );
-      } else {
-        showSuccessToast("Xong!");
-      }
-    } catch (error: any) {
-      console.error("Import error:", error);
-      toast.dismiss(toastId);
-      showErrorToast(`Lỗi: ${error}`);
-    } finally {
-      toast.dismiss(toastId);
-    }
+    });
   };
 
   const [uploadingProfiles, setUploadingProfiles] = useState<Set<string>>(
     new Set(),
+  );
+
+  const withUploadingProfile = useCallback(
+    async <T,>(profileId: string, task: () => Promise<T>) => {
+      setUploadingProfiles((prev) => new Set(prev).add(profileId));
+      try {
+        return await task();
+      } finally {
+        setUploadingProfiles((prev) => {
+          const next = new Set(prev);
+          next.delete(profileId);
+          return next;
+        });
+      }
+    },
+    [],
+  );
+  const [openedProfileIds, setOpenedProfileIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [dirtyProfileIds, setDirtyProfileIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const markProfileDirty = useCallback((profileId: string) => {
+    setDirtyProfileIds((prev) => new Set(prev).add(profileId));
+  }, []);
+
+  const maybeTriggerSync = useCallback(
+    async (profile: BrowserProfile) => {
+      if (!profile.sync_enabled) return;
+      if (!openedProfileIds.has(profile.id) || !dirtyProfileIds.has(profile.id))
+        return;
+
+      if (isManager) {
+        showToast({
+          type: "loading",
+          title: `Profile "${profile.name}" có thay đổi`,
+          description: "Admin cần xác nhận đồng bộ lên server.",
+          action: {
+            label: "Sync now",
+            onClick: () =>
+              void invoke("request_profile_sync", { profileId: profile.id }),
+          },
+        });
+        return;
+      }
+
+      try {
+        await invoke("request_profile_sync", { profileId: profile.id });
+      } catch (error) {
+        console.error("Auto sync failed:", error);
+      }
+    },
+    [dirtyProfileIds, isManager, openedProfileIds],
+  );
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let unlisten: (() => void) | undefined;
+
+    const setupListener = async () => {
+      unlisten = await listen<{ profile_id: string; status: string }>(
+        "profile-sync-status",
+        (event) => {
+          const { profile_id, status } = event.payload;
+          if (status === "synced") {
+            setDirtyProfileIds((prev) => {
+              if (!prev.has(profile_id)) return prev;
+              const next = new Set(prev);
+              next.delete(profile_id);
+              return next;
+            });
+            return;
+          }
+
+          if (status === "error") {
+            showErrorToast("Đồng bộ profile thất bại. Có thể thử lại.");
+          }
+        },
+      );
+    };
+
+    void setupListener();
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [isLoggedIn]);
+
+  const handleSaveCamoufoxConfig = useCallback(
+    async (profile: BrowserProfile, config: any) => {
+      await invoke("update_camoufox_config", { profileId: profile.id, config });
+      markProfileDirty(profile.id);
+      await maybeTriggerSync(profile);
+    },
+    [markProfileDirty, maybeTriggerSync],
+  );
+
+  const handleDownloadFromOdoo = useCallback(
+    async (profile: BrowserProfile) => {
+      const profileUrl = profile.profile_url;
+      if (!profileUrl) return;
+      await withUploadingProfile(profile.id, async () => {
+        await handleDownloadWithProgress(profile.id, profileUrl, profile.name);
+      });
+      markProfileDirty(profile.id);
+      await maybeTriggerSync(profile);
+    },
+    [
+      handleDownloadWithProgress,
+      markProfileDirty,
+      maybeTriggerSync,
+      withUploadingProfile,
+    ],
   );
 
   const handleUploadToOdoo = async (
@@ -892,9 +1016,14 @@ export default function Home() {
                   await loadOdooProfiles();
                 }
               }}
-              onRenameProfile={(id, newName) =>
-                invoke("rename_profile", { profileId: id, newName })
-              }
+              onRenameProfile={async (id, newName) => {
+                await invoke("rename_profile", { profileId: id, newName });
+                markProfileDirty(id);
+                const profile = profiles.find((p) => p.id === id);
+                if (profile) {
+                  await maybeTriggerSync(profile);
+                }
+              }}
               onConfigureCamoufox={(p) => {
                 setCurrentProfileForCamoufoxConfig(p);
                 setCamoufoxConfigDialogOpen(true);
@@ -921,11 +1050,8 @@ export default function Home() {
               onSelectedProfilesChange={setSelectedProfiles}
               onUploadToOdoo={handleUploadToOdoo}
               uploadingProfiles={uploadingProfiles}
-              onDownloadFromOdoo={async (p) => {
-                if (p.profile_url) {
-                  await handleDownloadWithProgress(p.id, p.profile_url, p.name);
-                }
-              }}
+              openedProfileIds={openedProfileIds}
+              onDownloadFromOdoo={handleDownloadFromOdoo}
               onImportCloudProfile={handleImportCloudProfile}
               onViewProfileDetails={(p) => setProfileForDetails(p)}
             />
@@ -981,9 +1107,7 @@ export default function Home() {
         isOpen={camoufoxConfigDialogOpen}
         onClose={() => setCamoufoxConfigDialogOpen(false)}
         profile={currentProfileForCamoufoxConfig}
-        onSave={(p, c) =>
-          invoke("update_camoufox_config", { profileId: p.id, config: c })
-        }
+        onSave={handleSaveCamoufoxConfig}
         isRunning={false}
       />
       <GroupManagementDialog

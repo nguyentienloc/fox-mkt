@@ -40,6 +40,24 @@ pub struct Downloader {
 }
 
 impl Downloader {
+  pub fn is_downloading(&self, browser: &str, version: &str) -> bool {
+    let key = format!("{browser}-{version}");
+    let downloading = DOWNLOADING_BROWSERS.lock().unwrap();
+    downloading.contains(&key)
+  }
+
+  pub fn clear_download_tracking(&self, browser: &str, version: &str) {
+    let key = format!("{browser}-{version}");
+    {
+      let mut downloading = DOWNLOADING_BROWSERS.lock().unwrap();
+      downloading.remove(&key);
+    }
+    {
+      let mut tokens = DOWNLOAD_CANCELLATION_TOKENS.lock().unwrap();
+      tokens.remove(&key);
+    }
+  }
+
   fn new() -> Self {
     Self {
       client: Client::new(),
@@ -228,6 +246,22 @@ impl Downloader {
           .ok_or_else(|| format!("No download URL provided for Orbita version {version}"))?;
 
         Ok(download_url)
+      }
+      BrowserType::CloakBrowser => {
+        let (os, arch) = Self::get_platform_info();
+        let archive_name = match (os.as_str(), arch.as_str()) {
+          ("macos", "arm64") => "cloakbrowser-darwin-arm64.tar.gz",
+          ("macos", "x64") => "cloakbrowser-darwin-x64.tar.gz",
+          ("linux", "x64") => "cloakbrowser-linux-x64.tar.gz",
+          ("linux", "arm64") => "cloakbrowser-linux-arm64.tar.gz",
+          ("windows", "x64") => "cloakbrowser-windows-x64.zip",
+          _ => return Err(format!("Unsupported platform for CloakBrowser: {os}/{arch}").into()),
+        };
+        let url = format!(
+          "https://github.com/CloakHQ/cloakbrowser/releases/download/chromium-v{}/{}",
+          version, archive_name
+        );
+        Ok(url)
       }
       _ => {
         // For other browsers, use the provided URL
@@ -666,6 +700,7 @@ impl Downloader {
     browser_str: String,
     version: String,
   ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    log::info!("download_browser_full start: {} {}", browser_str, version);
     // Only check Wayfern terms if Wayfern is already downloaded
     let terms_manager = crate::wayfern_terms::WayfernTermsManager::instance();
     if terms_manager.is_wayfern_downloaded() && !terms_manager.is_terms_accepted() {
@@ -677,6 +712,11 @@ impl Downloader {
     let cancel_token = {
       let mut downloading = DOWNLOADING_BROWSERS.lock().unwrap();
       if downloading.contains(&download_key) {
+        log::warn!(
+          "download_browser_full rejected: already downloading {} {}",
+          browser_str,
+          version
+        );
         return Err(format!("Browser '{browser_str}' version '{version}' is already being downloaded. Please wait for the current download to complete.").into());
       }
       // Mark this browser-version pair as being downloaded
@@ -739,6 +779,10 @@ impl Downloader {
       .is_browser_supported(&browser_str)
       .unwrap_or(false)
     {
+      log::error!(
+        "download_browser_full unsupported browser/platform: {}",
+        browser_str
+      );
       // Remove from downloading set on error
       let mut downloading = DOWNLOADING_BROWSERS.lock().unwrap();
       downloading.remove(&download_key);
@@ -790,6 +834,12 @@ impl Downloader {
     {
       Ok(path) => path,
       Err(e) => {
+        log::error!(
+          "download_browser_full network/download failure for {} {}: {}",
+          browser_str,
+          version,
+          e
+        );
         // Do NOT continue with extraction on failed downloads. Partial files may exist but are invalid.
         // Clean registry entry and stop here so the UI can show a single, clear error.
         let _ = self.registry.remove_browser(&browser_str, &version);

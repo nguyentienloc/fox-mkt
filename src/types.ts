@@ -25,6 +25,7 @@ export interface BrowserProfile {
   camoufox_config?: CamoufoxConfig; // Camoufox configuration
   wayfern_config?: WayfernConfig; // Wayfern configuration
   orbita_config?: WayfernConfig; // Orbita configuration (reusing Wayfern style for now)
+  cloakbrowser_config?: CloakBrowserConfig; // CloakBrowser configuration
   group_id?: string; // Reference to profile group
   tags?: string[];
   note?: string; // User note
@@ -436,6 +437,14 @@ export interface WayfernLaunchResult {
   profilePath?: string;
   url?: string;
   cdp_port?: number;
+}
+
+export interface CloakBrowserConfig {
+  seed?: number;
+  platform?: string;
+  timezone?: string;
+  locale?: string;
+  user_agent?: string;
 }
 
 // Traffic stats types

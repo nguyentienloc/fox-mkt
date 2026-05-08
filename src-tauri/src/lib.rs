@@ -17,6 +17,7 @@ mod browser_runner;
 mod browser_version_manager;
 pub mod camoufox;
 mod camoufox_manager;
+mod cloakbrowser_manager;
 mod default_browser;
 mod downloaded_browsers_registry;
 mod downloader;
@@ -935,6 +936,48 @@ pub fn run() {
           Err(e) => {
             log::error!("Failed to check GeoIP database status at startup: {e}");
           }
+        }
+      });
+
+      // Auto-download Foxia Browser (CloakBrowser) at startup if not yet downloaded
+      let app_handle_foxia = app.handle().clone();
+      tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+
+        let registry = crate::downloaded_browsers_registry::DownloadedBrowsersRegistry::instance();
+        let versions = registry.get_downloaded_versions("cloakbrowser");
+        if versions.is_empty() {
+          log::info!("No Foxia Browser found, fetching latest version to auto-download...");
+          let version_manager = crate::browser_version_manager::BrowserVersionManager::instance();
+          match version_manager
+            .fetch_browser_versions("cloakbrowser", false)
+            .await
+          {
+            Ok(available) => {
+              if let Some(latest) = available.first() {
+                log::info!("Auto-downloading Foxia Browser version {latest}...");
+                match crate::downloader::download_browser(
+                  app_handle_foxia.clone(),
+                  "cloakbrowser".to_string(),
+                  latest.clone(),
+                )
+                .await
+                {
+                  Ok(_) => {
+                    log::info!("Foxia Browser {latest} downloaded successfully at startup");
+                  }
+                  Err(e) => {
+                    log::error!("Failed to auto-download Foxia Browser: {e}");
+                  }
+                }
+              }
+            }
+            Err(e) => {
+              log::error!("Failed to fetch Foxia Browser versions: {e}");
+            }
+          }
+        } else {
+          log::info!("Foxia Browser already downloaded: {:?}", versions.first());
         }
       });
 

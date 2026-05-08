@@ -17,7 +17,13 @@ import type { Dispatch, SetStateAction } from "react";
 import * as React from "react";
 import { FiWifi } from "react-icons/fi";
 import { IoEllipsisHorizontal } from "react-icons/io5";
-import { LuChevronDown, LuChevronUp, LuCloud, LuLoader } from "react-icons/lu";
+import {
+  LuChevronDown,
+  LuChevronUp,
+  LuCloud,
+  LuLoader,
+  LuUpload,
+} from "react-icons/lu";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -79,6 +85,7 @@ interface ProfilesDataTableProps {
   onDownloadFromOdoo?: (profile: BrowserProfile) => Promise<void>;
   onImportCloudProfile?: (profile: any) => Promise<void>;
   uploadingProfiles?: Set<string>;
+  openedProfileIds?: Set<string>;
   onViewProfileDetails?: (profile: BrowserProfile) => void;
 
   // Pagination
@@ -145,6 +152,7 @@ interface TableMeta {
   onDownloadFromOdoo?: (profile: BrowserProfile) => Promise<void>;
   onImportCloudProfile?: (profile: any) => Promise<void>;
   uploadingProfiles: Set<string>;
+  openedProfileIds: Set<string>;
   onViewProfileDetails?: (profile: BrowserProfile) => void;
   isManager?: boolean;
 }
@@ -167,6 +175,7 @@ export function ProfilesDataTable({
   onDownloadFromOdoo,
   onImportCloudProfile,
   uploadingProfiles = new Set(),
+  openedProfileIds = new Set(),
   onViewProfileDetails,
   currentPage = 1,
   totalPages = 1,
@@ -369,7 +378,7 @@ export function ProfilesDataTable({
         unlisten = await listen<{ id: string; is_running: boolean }>(
           "profile-running-changed",
           (event) => {
-            const { id } = event.payload;
+            const { id, is_running } = event.payload;
             setLaunchingProfiles((prev) => {
               if (!prev.has(id)) return prev;
               const next = new Set(prev);
@@ -383,10 +392,8 @@ export function ProfilesDataTable({
               return next;
             });
             setRunningStateOverrides((prev) => {
-              if (!(id in prev)) return prev;
-              const next = { ...prev };
-              delete next[id];
-              return next;
+              if (prev[id] === is_running) return prev;
+              return { ...prev, [id]: is_running };
             });
           },
         );
@@ -415,6 +422,81 @@ export function ProfilesDataTable({
       return changed ? next : prev;
     });
   }, [profiles]);
+
+  React.useEffect(() => {
+    if (!browserState.isClient) return;
+
+    const trackedProfiles = profiles.filter(
+      (profile) =>
+        profile.id in runningStateOverrides &&
+        !launchingProfiles.has(profile.id) &&
+        !stoppingProfiles.has(profile.id),
+    );
+
+    if (trackedProfiles.length === 0) return;
+
+    let cancelled = false;
+
+    const reconcileRunningState = async () => {
+      const statuses = await Promise.all(
+        trackedProfiles.map(async (profile) => {
+          try {
+            const isRunning = await invoke<boolean>("check_browser_status", {
+              profile,
+            });
+            return { id: profile.id, isRunning };
+          } catch (error) {
+            console.error(
+              `Failed to reconcile running state for ${profile.name}:`,
+              error,
+            );
+            return { id: profile.id, isRunning: false };
+          }
+        }),
+      );
+
+      if (cancelled) return;
+
+      setRunningStateOverrides((prev) => {
+        let changed = false;
+        const next = { ...prev };
+
+        for (const { id, isRunning } of statuses) {
+          if (!(id in next)) continue;
+
+          const sourceRunning = runningProfiles.has(id);
+          if (sourceRunning === isRunning) {
+            delete next[id];
+            changed = true;
+            continue;
+          }
+
+          if (next[id] !== isRunning) {
+            next[id] = isRunning;
+            changed = true;
+          }
+        }
+
+        return changed ? next : prev;
+      });
+    };
+
+    const interval = setInterval(() => {
+      void reconcileRunningState();
+    }, 2000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [
+    browserState.isClient,
+    profiles,
+    runningProfiles,
+    runningStateOverrides,
+    launchingProfiles,
+    stoppingProfiles,
+  ]);
 
   const handleLaunchProfileAction = React.useCallback(
     async (profile: BrowserProfile) => {
@@ -642,6 +724,7 @@ export function ProfilesDataTable({
       onDownloadFromOdoo,
       onImportCloudProfile,
       uploadingProfiles,
+      openedProfileIds,
       onViewProfileDetails,
       isManager,
     }),
@@ -678,6 +761,7 @@ export function ProfilesDataTable({
       handleCheckboxChange,
       handleIconClick,
       uploadingProfiles,
+      openedProfileIds,
       onViewProfileDetails,
       isManager,
     ],
@@ -810,6 +894,8 @@ export function ProfilesDataTable({
           const meta = table.options.meta as TableMeta;
           const profile = row.original;
           const isCloudOnly = (profile as any).is_cloud_only;
+          const hasProfileUrl =
+            profile.profile_url && profile.profile_url.trim() !== "";
           const isRunning =
             meta.isClient && meta.runningProfiles.has(profile.id);
           const isLaunching = meta.launchingProfiles.has(profile.id);
@@ -817,6 +903,11 @@ export function ProfilesDataTable({
           const canLaunch = meta.browserState.canLaunchProfile(profile);
 
           const isUploading = meta.uploadingProfiles?.has(profile.id);
+          const shouldShowUploadAction =
+            !isCloudOnly &&
+            !hasProfileUrl &&
+            meta.openedProfileIds.has(profile.id) &&
+            !!meta.onUploadToOdoo;
 
           if (isCloudOnly) {
             return (
@@ -837,25 +928,49 @@ export function ProfilesDataTable({
           }
 
           return (
-            <RippleButton
-              variant={isRunning ? "destructive" : "default"}
-              size="sm"
-              disabled={!canLaunch || isLaunching || isStopping || isUploading}
-              className="min-w-[70px] h-7"
-              onClick={() =>
-                isRunning
-                  ? meta.onKillProfile(profile)
-                  : meta.onLaunchProfile(profile)
-              }
-            >
-              {isLaunching || isStopping || isUploading ? (
-                <div className="w-3 h-3 border border-current animate-spin border-t-transparent rounded-full" />
-              ) : isRunning ? (
-                "Dừng"
-              ) : (
-                "Mở"
+            <div className="flex items-center gap-1">
+              {shouldShowUploadAction && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-7"
+                      disabled={isUploading}
+                      onClick={() => void meta.onUploadToOdoo?.(profile)}
+                    >
+                      {isUploading ? (
+                        <div className="w-3 h-3 border border-current animate-spin border-t-transparent rounded-full" />
+                      ) : (
+                        <LuUpload className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Đẩy lên S3</TooltipContent>
+                </Tooltip>
               )}
-            </RippleButton>
+              <RippleButton
+                variant={isRunning ? "destructive" : "default"}
+                size="sm"
+                disabled={
+                  !canLaunch || isLaunching || isStopping || isUploading
+                }
+                className="min-w-[70px] h-7"
+                onClick={() =>
+                  isRunning
+                    ? meta.onKillProfile(profile)
+                    : meta.onLaunchProfile(profile)
+                }
+              >
+                {isLaunching || isStopping || isUploading ? (
+                  <div className="w-3 h-3 border border-current animate-spin border-t-transparent rounded-full" />
+                ) : isRunning ? (
+                  "Dừng"
+                ) : (
+                  "Mở"
+                )}
+              </RippleButton>
+            </div>
           );
         },
         size: 80,
@@ -1197,6 +1312,17 @@ export function ProfilesDataTable({
     meta: tableMeta,
   });
 
+  const shouldHighlightUploadRow = React.useCallback(
+    (profile: BrowserProfile) => {
+      const isCloudOnly = (profile as any).is_cloud_only;
+      const hasProfileUrl =
+        profile.profile_url && profile.profile_url.trim() !== "";
+
+      return !isCloudOnly && !hasProfileUrl && openedProfileIds.has(profile.id);
+    },
+    [openedProfileIds],
+  );
+
   return (
     <div className="flex flex-col h-full border rounded-md overflow-hidden bg-background">
       <div className="flex-1 overflow-auto relative">
@@ -1214,7 +1340,14 @@ export function ProfilesDataTable({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id} className="hover:bg-accent/50">
+              <TableRow
+                key={row.id}
+                className={
+                  shouldHighlightUploadRow(row.original)
+                    ? "bg-orange-500/10 hover:bg-orange-500/15"
+                    : "hover:bg-accent/50"
+                }
+              >
                 {row.getVisibleCells().map((c) => (
                   <TableCell key={c.id}>
                     {flexRender(c.column.columnDef.cell, c.getContext())}

@@ -64,6 +64,7 @@ export function useProfileEvents(): UseProfileEventsReturn {
   // Initial load and event listeners setup
   useEffect(() => {
     let profilesUnlisten: (() => void) | undefined;
+    let profileUpdatedUnlisten: (() => void) | undefined;
     let runningUnlisten: (() => void) | undefined;
 
     const setupListeners = async () => {
@@ -79,6 +80,35 @@ export function useProfileEvents(): UseProfileEventsReturn {
           void loadProfiles();
           void loadGroups();
         });
+
+        profileUpdatedUnlisten = await listen<BrowserProfile | null>(
+          "profile-updated",
+          (event) => {
+            const updatedProfile = event.payload;
+
+            if (!updatedProfile?.id) {
+              console.log(
+                "[use-profile-events] Received profile-updated without payload, reloading profiles",
+              );
+              void loadProfiles();
+              return;
+            }
+
+            setProfiles((prev) => {
+              const index = prev.findIndex(
+                (profile) => profile.id === updatedProfile.id,
+              );
+
+              if (index === -1) {
+                return [...prev, updatedProfile];
+              }
+
+              const next = [...prev];
+              next[index] = updatedProfile;
+              return next;
+            });
+          },
+        );
 
         // Listen for profile running state changes
         runningUnlisten = await listen<{ id: string; is_running: boolean }>(
@@ -113,6 +143,7 @@ export function useProfileEvents(): UseProfileEventsReturn {
     // Cleanup listeners on unmount
     return () => {
       if (profilesUnlisten) profilesUnlisten();
+      if (profileUpdatedUnlisten) profileUpdatedUnlisten();
       if (runningUnlisten) runningUnlisten();
     };
   }, [loadProfiles, loadGroups]);

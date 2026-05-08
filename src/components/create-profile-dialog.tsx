@@ -16,16 +16,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { WayfernConfigForm } from "@/components/wayfern-config-form";
 
 import { useBrowserDownload } from "@/hooks/use-browser-download";
-import { getBrowserIcon } from "@/lib/browser-utils";
+import { generateCloakUserAgent, getBrowserIcon } from "@/lib/browser-utils";
 import { showCleanErrorToast } from "@/lib/error-utils";
 import type {
   BrowserReleaseTypes,
   CamoufoxConfig,
   CamoufoxOS,
+  CloakBrowserConfig,
   WayfernConfig,
   WayfernOS,
 } from "@/types";
@@ -48,7 +56,8 @@ type BrowserTypeString =
   | "zen"
   | "camoufox"
   | "wayfern"
-  | "orbita";
+  | "orbita"
+  | "cloakbrowser";
 
 interface CreateProfileDialogProps {
   isOpen: boolean;
@@ -62,6 +71,7 @@ interface CreateProfileDialogProps {
     camoufoxConfig?: CamoufoxConfig;
     wayfernConfig?: WayfernConfig;
     orbitaConfig?: WayfernConfig;
+    cloakbrowserConfig?: CloakBrowserConfig;
     groupId?: string;
     username?: string;
     password?: string;
@@ -127,6 +137,12 @@ export function CreateProfileDialog({
   const [wayfernConfig, setWayfernConfig] = useState<WayfernConfig>(() => ({
     os: getCurrentOS() as WayfernOS, // Default to current OS
   }));
+
+  // CloakBrowser (Foxia) config states
+  const [cloakbrowserConfig, setCloakbrowserConfig] =
+    useState<CloakBrowserConfig>(() => ({
+      platform: getCurrentOS(),
+    }));
 
   // Handle browser selection from the initial screen
   const handleBrowserSelect = (browser: BrowserTypeString) => {
@@ -212,7 +228,11 @@ export function CreateProfileDialog({
         // Only update state if this browser is still the one we're loading
         if (loadingBrowserRef.current === browser) {
           // Filter to enforce stable-only creation, except Firefox Developer (nightly-only)
-          if (browser === "camoufox" || browser === "wayfern") {
+          if (
+            browser === "camoufox" ||
+            browser === "wayfern" ||
+            browser === "cloakbrowser"
+          ) {
             const filtered: BrowserReleaseTypes = {};
             if (rawReleaseTypes.stable)
               filtered.stable = rawReleaseTypes.stable;
@@ -283,7 +303,11 @@ export function CreateProfileDialog({
         void loadReleaseTypes(selectedBrowser);
       }
       // Check and download GeoIP database if needed for Camoufox or Wayfern
-      if (selectedBrowser === "camoufox" || selectedBrowser === "wayfern") {
+      if (
+        selectedBrowser === "camoufox" ||
+        selectedBrowser === "wayfern" ||
+        selectedBrowser === "cloakbrowser"
+      ) {
         void checkAndDownloadGeoIPDatabase();
       }
     }
@@ -393,6 +417,27 @@ export function CreateProfileDialog({
             username: username.trim() || undefined,
             password: password.trim() || undefined,
           });
+        } else if (selectedBrowser === "cloakbrowser") {
+          const bestVersion = getBestAvailableVersion("cloakbrowser");
+          if (!bestVersion) {
+            console.error("No Foxia Browser version available");
+            return;
+          }
+
+          const finalCloakbrowserConfig = { ...cloakbrowserConfig };
+
+          await onCreateProfile({
+            name: profileName.trim(),
+            browserStr: "cloakbrowser" as BrowserTypeString,
+            version: bestVersion.version,
+            releaseType: bestVersion.releaseType,
+            proxyId: selectedProxyId,
+            cloakbrowserConfig: finalCloakbrowserConfig,
+            groupId:
+              selectedGroupId !== "default" ? selectedGroupId : undefined,
+            username: username.trim() || undefined,
+            password: password.trim() || undefined,
+          });
         } else {
           // Default to Camoufox
           const bestCamoufoxVersion = getBestAvailableVersion("camoufox");
@@ -475,6 +520,9 @@ export function CreateProfileDialog({
     setWayfernConfig({
       os: getCurrentOS() as WayfernOS, // Reset to current OS
     });
+    setCloakbrowserConfig({
+      platform: getCurrentOS(),
+    });
     onClose();
   };
 
@@ -485,6 +533,38 @@ export function CreateProfileDialog({
   const updateWayfernConfig = (key: keyof WayfernConfig, value: unknown) => {
     setWayfernConfig((prev) => ({ ...prev, [key]: value }));
   };
+
+  const updateCloakbrowserConfig = (
+    key: keyof CloakBrowserConfig,
+    value: unknown,
+  ) => {
+    setCloakbrowserConfig((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const generateCloakbrowserFingerprint = useCallback(() => {
+    const tz =
+      Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+    const locale = navigator.language || "en-US";
+    const seed = Math.floor(Math.random() * 90000) + 10000;
+    const platform = cloakbrowserConfig.platform || getCurrentOS();
+    const bestVer = getBestAvailableVersion("cloakbrowser");
+    const chromeVer = bestVer?.version?.replace(/\.\d+$/, "") || "125.0.0.0";
+    const ua = generateCloakUserAgent(platform, chromeVer);
+    setCloakbrowserConfig((prev) => ({
+      ...prev,
+      timezone: tz,
+      locale,
+      seed,
+      user_agent: ua,
+    }));
+  }, [cloakbrowserConfig.platform, getBestAvailableVersion]);
+
+  // Auto-generate fingerprint when CloakBrowser (Foxia) is selected
+  useEffect(() => {
+    if (selectedBrowser === "cloakbrowser") {
+      generateCloakbrowserFingerprint();
+    }
+  }, [selectedBrowser, generateCloakbrowserFingerprint]);
 
   // Check if browser version is downloaded and available
   const isBrowserVersionAvailable = useCallback(
@@ -558,34 +638,7 @@ export function CreateProfileDialog({
                         </div>
 
                         <div className="space-y-3">
-                          {/* Wayfern (Chromium) - First */}
-                          {false && (
-                            <Button
-                              onClick={() => handleBrowserSelect("wayfern")}
-                              className="flex gap-3 justify-start items-center p-4 w-full h-16 border-2 transition-colors hover:border-primary/50"
-                              variant="outline"
-                            >
-                              <div className="flex justify-center items-center w-8 h-8">
-                                {(() => {
-                                  const IconComponent =
-                                    getBrowserIcon("wayfern");
-                                  return IconComponent ? (
-                                    <IconComponent className="w-6 h-6" />
-                                  ) : null;
-                                })()}
-                              </div>
-                              <div className="text-left">
-                                <div className="font-medium">
-                                  {t("createProfile.chromiumWayfern")}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  {t("createProfile.antiDetectBrowser")}
-                                </div>
-                              </div>
-                            </Button>
-                          )}
-
-                          {/* Camoufox (Firefox) - Second */}
+                          {/* Camoufox (Firefox) */}
                           <Button
                             onClick={() => handleBrowserSelect("camoufox")}
                             className="flex gap-3 justify-start items-center p-4 w-full h-16 border-2 transition-colors hover:border-primary/50"
@@ -610,24 +663,23 @@ export function CreateProfileDialog({
                             </div>
                           </Button>
 
-                          {/* Orbita (Chromium) - Third */}
+                          {/* Foxia Browser (CloakBrowser) */}
                           <Button
-                            onClick={() => handleBrowserSelect("orbita")}
+                            onClick={() => handleBrowserSelect("cloakbrowser")}
                             className="flex gap-3 justify-start items-center p-4 w-full h-16 border-2 transition-colors hover:border-primary/50"
                             variant="outline"
                           >
                             <div className="flex justify-center items-center w-8 h-8">
                               {(() => {
-                                const IconComponent = getBrowserIcon("orbita");
+                                const IconComponent =
+                                  getBrowserIcon("cloakbrowser");
                                 return IconComponent ? (
                                   <IconComponent className="w-6 h-6" />
                                 ) : null;
                               })()}
                             </div>
                             <div className="text-left">
-                              <div className="font-medium">
-                                {t("createProfile.orbita")}
-                              </div>
+                              <div className="font-medium">Foxia Browser</div>
                               <div className="text-sm text-muted-foreground">
                                 {t("createProfile.antiDetectBrowser")}
                               </div>
@@ -1011,6 +1063,189 @@ export function CreateProfileDialog({
                               isCreating
                               browserType="camoufox"
                             />
+                          </div>
+                        ) : selectedBrowser === "cloakbrowser" ? (
+                          // Foxia Browser (CloakBrowser) Configuration
+                          <div className="space-y-6">
+                            {isLoadingReleaseTypes && (
+                              <div className="flex gap-3 items-center p-3 rounded-md border">
+                                <div className="w-4 h-4 rounded-full border-2 animate-spin border-muted/40 border-t-primary" />
+                                <p className="text-sm text-muted-foreground">
+                                  Fetching available versions...
+                                </p>
+                              </div>
+                            )}
+                            {!isLoadingReleaseTypes && releaseTypesError && (
+                              <div className="flex gap-3 items-center p-3 rounded-md border border-destructive/50 bg-destructive/10">
+                                <p className="flex-1 text-sm text-destructive">
+                                  {releaseTypesError}
+                                </p>
+                                <RippleButton
+                                  onClick={() =>
+                                    selectedBrowser &&
+                                    loadReleaseTypes(selectedBrowser)
+                                  }
+                                  size="sm"
+                                  variant="outline"
+                                >
+                                  Retry
+                                </RippleButton>
+                              </div>
+                            )}
+                            {!isLoadingReleaseTypes &&
+                              !releaseTypesError &&
+                              !isBrowserCurrentlyDownloading("cloakbrowser") &&
+                              !isBrowserVersionAvailable("cloakbrowser") &&
+                              getBestAvailableVersion("cloakbrowser") && (
+                                <div className="flex gap-3 items-center p-3 rounded-md border">
+                                  <p className="text-sm text-muted-foreground">
+                                    {(() => {
+                                      const bestVersion =
+                                        getBestAvailableVersion("cloakbrowser");
+                                      return `Foxia Browser version (${bestVersion?.version}) needs to be downloaded`;
+                                    })()}
+                                  </p>
+                                  <LoadingButton
+                                    onClick={() =>
+                                      handleDownload("cloakbrowser")
+                                    }
+                                    isLoading={isBrowserCurrentlyDownloading(
+                                      "cloakbrowser",
+                                    )}
+                                    size="sm"
+                                    disabled={isBrowserCurrentlyDownloading(
+                                      "cloakbrowser",
+                                    )}
+                                  >
+                                    {isBrowserCurrentlyDownloading(
+                                      "cloakbrowser",
+                                    )
+                                      ? "Downloading..."
+                                      : "Download"}
+                                  </LoadingButton>
+                                </div>
+                              )}
+                            {!isLoadingReleaseTypes &&
+                              !releaseTypesError &&
+                              !isBrowserCurrentlyDownloading("cloakbrowser") &&
+                              isBrowserVersionAvailable("cloakbrowser") && (
+                                <div className="p-3 text-sm rounded-md border text-muted-foreground">
+                                  {(() => {
+                                    const bestVersion =
+                                      getBestAvailableVersion("cloakbrowser");
+                                    return `✓ Foxia Browser version (${bestVersion?.version}) is available`;
+                                  })()}
+                                </div>
+                              )}
+                            {isBrowserCurrentlyDownloading("cloakbrowser") && (
+                              <div className="p-3 text-sm rounded-md border text-muted-foreground">
+                                {(() => {
+                                  const bestVersion =
+                                    getBestAvailableVersion("cloakbrowser");
+                                  return `Downloading Foxia Browser version (${bestVersion?.version})...`;
+                                })()}
+                              </div>
+                            )}
+
+                            {/* Foxia Browser Fingerprint Configuration */}
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-base font-medium">
+                                  Fingerprint Configuration
+                                </Label>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={generateCloakbrowserFingerprint}
+                                  className="gap-2"
+                                >
+                                  Generate
+                                </Button>
+                              </div>
+
+                              <div className="space-y-3">
+                                <Label>Platform</Label>
+                                <Select
+                                  value={
+                                    cloakbrowserConfig.platform ||
+                                    getCurrentOS()
+                                  }
+                                  onValueChange={(value) =>
+                                    updateCloakbrowserConfig("platform", value)
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select platform" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="windows">
+                                      Windows
+                                    </SelectItem>
+                                    <SelectItem value="macos">macOS</SelectItem>
+                                    <SelectItem value="linux">Linux</SelectItem>
+                                    <SelectItem value="android">
+                                      Android
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="cloak-timezone">
+                                    Timezone
+                                  </Label>
+                                  <Input
+                                    id="cloak-timezone"
+                                    value={cloakbrowserConfig.timezone || ""}
+                                    onChange={(e) =>
+                                      updateCloakbrowserConfig(
+                                        "timezone",
+                                        e.target.value || undefined,
+                                      )
+                                    }
+                                    placeholder="e.g. America/New_York"
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="cloak-locale">Locale</Label>
+                                  <Input
+                                    id="cloak-locale"
+                                    value={cloakbrowserConfig.locale || ""}
+                                    onChange={(e) =>
+                                      updateCloakbrowserConfig(
+                                        "locale",
+                                        e.target.value || undefined,
+                                      )
+                                    }
+                                    placeholder="e.g. en-US"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="cloak-useragent">
+                                  User Agent
+                                </Label>
+                                <Input
+                                  id="cloak-useragent"
+                                  value={cloakbrowserConfig.user_agent || ""}
+                                  onChange={(e) =>
+                                    updateCloakbrowserConfig(
+                                      "user_agent",
+                                      e.target.value || undefined,
+                                    )
+                                  }
+                                  placeholder="Click Generate to auto-fill"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                  Browser User Agent string. Click Generate to
+                                  auto-fill all fields.
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         ) : (
                           // Regular Browser Configuration (should not happen in anti-detect tab)

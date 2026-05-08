@@ -91,6 +91,13 @@ impl BrowserVersionManager {
         ))
       }
       "orbita" => Ok(true),
+      "cloakbrowser" => {
+        let platform_key = format!("{os}-{arch}");
+        Ok(matches!(
+          platform_key.as_str(),
+          "macos-arm64" | "macos-x64" | "linux-x64" | "linux-arm64" | "windows-x64"
+        ))
+      }
       _ => Err(format!("Unknown browser: {browser}").into()),
     }
   }
@@ -105,6 +112,7 @@ impl BrowserVersionManager {
       // "chromium",
       "camoufox", // "wayfern",
       "orbita",
+      "cloakbrowser",
     ];
 
     all_browsers
@@ -244,6 +252,7 @@ impl BrowserVersionManager {
       "camoufox" => self.fetch_camoufox_versions(true).await?,
       "wayfern" => self.fetch_wayfern_versions(true).await?,
       "orbita" => self.fetch_orbita_versions(true).await?,
+      "cloakbrowser" => self.fetch_cloakbrowser_versions(true).await?,
       _ => return Err(format!("Unsupported browser: {browser}").into()),
     };
 
@@ -477,6 +486,14 @@ impl BrowserVersionManager {
           })
           .collect()
       }
+      "cloakbrowser" => merged_versions
+        .into_iter()
+        .map(|version| BrowserVersionInfo {
+          version: version.clone(),
+          date: "".to_string(),
+          is_prerelease: false,
+        })
+        .collect(),
       _ => {
         return Err(format!("Unsupported browser: {browser}").into());
       }
@@ -739,6 +756,29 @@ impl BrowserVersionManager {
           is_archive: true,
         })
       }
+      "cloakbrowser" => {
+        let (archive_suffix, is_archive) = match os.as_str() {
+          "windows" => ("zip", true),
+          _ => ("tar.gz", true),
+        };
+        let platform = match (os.as_str(), arch.as_str()) {
+          ("macos", "arm64") => "darwin-arm64",
+          ("macos", "x64") => "darwin-x64",
+          ("linux", "x64") => "linux-x64",
+          ("linux", "arm64") => "linux-arm64",
+          ("windows", "x64") => "windows-x64",
+          _ => return Err(format!("Unsupported platform for CloakBrowser: {os}/{arch}").into()),
+        };
+        let filename = format!("cloakbrowser-{platform}.{archive_suffix}");
+
+        Ok(DownloadInfo {
+          url: format!(
+            "https://github.com/CloakHQ/cloakbrowser/releases/download/chromium-v{version}/{filename}"
+          ),
+          filename,
+          is_archive,
+        })
+      }
       _ => Err(format!("Unsupported browser: {browser}").into()),
     }
   }
@@ -952,6 +992,55 @@ impl BrowserVersionManager {
       // No compatible download for current platform
       Ok(vec![])
     }
+  }
+
+  async fn fetch_cloakbrowser_versions(
+    &self,
+    _no_caching: bool,
+  ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+    let client = reqwest::Client::new();
+    let resp = client
+      .get("https://api.github.com/repos/CloakHQ/cloakbrowser/releases?per_page=20")
+      .header("User-Agent", "fox-mkt")
+      .send()
+      .await?;
+
+    let releases: Vec<serde_json::Value> = resp.json().await?;
+    let (os, arch) = Self::get_platform_info();
+    let platform_suffix = match (os.as_str(), arch.as_str()) {
+      ("macos", "arm64") => "darwin-arm64",
+      ("macos", "x64") => "darwin-x64",
+      ("linux", "x64") => "linux-x64",
+      ("linux", "arm64") => "linux-arm64",
+      ("windows", "x64") => "windows-x64",
+      _ => return Ok(vec![]),
+    };
+
+    let mut versions = Vec::new();
+    for release in &releases {
+      if let Some(tag) = release.get("tag_name").and_then(|t| t.as_str()) {
+        let has_platform_asset = release
+          .get("assets")
+          .and_then(|a| a.as_array())
+          .map(|assets| {
+            assets.iter().any(|a| {
+              a.get("name")
+                .and_then(|n| n.as_str())
+                .map(|n| n.contains(platform_suffix))
+                .unwrap_or(false)
+            })
+          })
+          .unwrap_or(false);
+
+        if has_platform_asset {
+          if let Some(version) = tag.strip_prefix("chromium-v") {
+            versions.push(version.to_string());
+          }
+        }
+      }
+    }
+
+    Ok(versions)
   }
 }
 

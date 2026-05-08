@@ -276,6 +276,10 @@ export function useBrowserDownload() {
             const browserName = getBrowserDisplayName(progress.browser);
 
             if (progress.stage === "downloading") {
+              setDownloadingBrowsers((prev) =>
+                new Set(prev).add(progress.browser),
+              );
+
               const speedMBps = (
                 progress.speed_bytes_per_sec /
                 (1024 * 1024)
@@ -314,6 +318,11 @@ export function useBrowserDownload() {
               dismissToast(
                 `download-${browserName.toLowerCase()}-${progress.version}`,
               );
+              setDownloadingBrowsers((prev) => {
+                const next = new Set(prev);
+                next.delete(progress.browser);
+                return next;
+              });
               setDownloadProgress(null);
             } else if (progress.stage === "completed") {
               // On completion, refresh the downloaded versions for this browser and also refresh camoufox,
@@ -326,6 +335,11 @@ export function useBrowserDownload() {
                     : Promise.resolve([]),
                 ]);
               } catch {}
+              setDownloadingBrowsers((prev) => {
+                const next = new Set(prev);
+                next.delete(progress.browser);
+                return next;
+              });
               showDownloadToast(browserName, progress.version, "completed");
               setDownloadProgress(null);
             }

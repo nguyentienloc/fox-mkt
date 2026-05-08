@@ -21,6 +21,7 @@ pub enum BrowserType {
   Camoufox,
   Wayfern,
   Orbita,
+  CloakBrowser,
 }
 
 impl BrowserType {
@@ -34,6 +35,7 @@ impl BrowserType {
       BrowserType::Camoufox => "camoufox",
       BrowserType::Wayfern => "wayfern",
       BrowserType::Orbita => "orbita",
+      BrowserType::CloakBrowser => "cloakbrowser",
     }
   }
 
@@ -47,6 +49,7 @@ impl BrowserType {
       "camoufox" => Ok(BrowserType::Camoufox),
       "wayfern" => Ok(BrowserType::Wayfern),
       "orbita" => Ok(BrowserType::Orbita),
+      "cloakbrowser" => Ok(BrowserType::CloakBrowser),
       _ => Err(format!("Unknown browser type: {s}")),
     }
   }
@@ -265,35 +268,146 @@ mod macos {
   pub fn get_orbita_executable_path(
     install_dir: &Path,
   ) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    // Orbita on macOS is usually Orbita-Browser.app/Contents/MacOS/Orbita
-    // or sometimes it extracts directly
-    let app_path = std::fs::read_dir(install_dir)?
+    let preferred_names = ["orbita", "orbita-browser", "chrome", "chromium"];
+
+    if let Some(app_path) = std::fs::read_dir(install_dir)?
       .filter_map(Result::ok)
       .find(|entry| {
-        let name = entry.file_name().to_string_lossy().to_lowercase();
-        name.contains("orbita") && name.ends_with(".app")
+        let raw_name = entry.file_name().to_string_lossy().to_string();
+        let name = raw_name.to_lowercase();
+        !raw_name.starts_with("._")
+          && !raw_name.starts_with('.')
+          && name.contains("orbita")
+          && name.ends_with(".app")
       })
-      .ok_or("Orbita-Browser.app not found")?;
+      .or_else(|| {
+        std::fs::read_dir(install_dir)
+          .ok()?
+          .filter_map(Result::ok)
+          .find(|entry| {
+            let raw_name = entry.file_name().to_string_lossy().to_string();
+            !raw_name.starts_with("._")
+              && !raw_name.starts_with('.')
+              && entry.path().extension().is_some_and(|ext| ext == "app")
+          })
+      })
+    {
+      let macos_dir = app_path.path().join("Contents").join("MacOS");
+      if macos_dir.exists() && macos_dir.is_dir() {
+        if let Some(path) = std::fs::read_dir(&macos_dir)?
+          .filter_map(Result::ok)
+          .find_map(|entry| {
+            let path = entry.path();
+            if !path.is_file() {
+              return None;
+            }
+            let raw_name = entry.file_name().to_string_lossy().to_string();
+            if raw_name.starts_with("._") || raw_name.starts_with('.') {
+              return None;
+            }
+            let name = raw_name.to_lowercase();
+            if preferred_names
+              .iter()
+              .any(|candidate| name.contains(candidate))
+            {
+              Some(path)
+            } else {
+              None
+            }
+          })
+        {
+          return Ok(path);
+        }
 
-    let mut executable_path = app_path.path();
-    executable_path.push("Contents");
-    executable_path.push("MacOS");
-    executable_path.push("Orbita");
-
-    if !executable_path.exists() {
-      // Fallback to searching for any executable in MacOS
-      let macos_dir = executable_path.parent().unwrap();
-      if let Ok(entries) = std::fs::read_dir(macos_dir) {
-        if let Some(entry) = entries.filter_map(Result::ok).find(|e| e.path().is_file()) {
-          return Ok(entry.path());
+        if let Some(path) = std::fs::read_dir(&macos_dir)?
+          .filter_map(Result::ok)
+          .find_map(|entry| {
+            let path = entry.path();
+            let raw_name = entry.file_name().to_string_lossy().to_string();
+            if path.is_file() && !raw_name.starts_with("._") && !raw_name.starts_with('.') {
+              Some(path)
+            } else {
+              None
+            }
+          })
+        {
+          return Ok(path);
         }
       }
-      return Err("Orbita executable not found in MacOS directory".into());
     }
 
-    Ok(executable_path)
-  }
+    if let Some(path) = std::fs::read_dir(install_dir)?
+      .filter_map(Result::ok)
+      .find_map(|entry| {
+        let path = entry.path();
+        if path.is_file() {
+          let raw_name = entry.file_name().to_string_lossy().to_string();
+          if raw_name.starts_with("._") || raw_name.starts_with('.') {
+            return None;
+          }
+          let name = raw_name.to_lowercase();
+          if preferred_names
+            .iter()
+            .any(|candidate| name.contains(candidate))
+          {
+            return Some(path);
+          }
+        }
+        None
+      })
+    {
+      return Ok(path);
+    }
 
+    for entry in std::fs::read_dir(install_dir)?.filter_map(Result::ok) {
+      let level1 = entry.path();
+      if !level1.is_dir() {
+        continue;
+      }
+
+      if let Ok(level1_entries) = std::fs::read_dir(&level1) {
+        for child in level1_entries.filter_map(Result::ok) {
+          let path = child.path();
+          if path.is_file() {
+            let raw_name = child.file_name().to_string_lossy().to_string();
+            if raw_name.starts_with("._") || raw_name.starts_with('.') {
+              continue;
+            }
+            let name = raw_name.to_lowercase();
+            if preferred_names
+              .iter()
+              .any(|candidate| name.contains(candidate))
+            {
+              return Ok(path);
+            }
+          }
+
+          if path.is_dir() {
+            if let Ok(level2_entries) = std::fs::read_dir(&path) {
+              for leaf in level2_entries.filter_map(Result::ok) {
+                let leaf_path = leaf.path();
+                if leaf_path.is_file() {
+                  let raw_name = leaf.file_name().to_string_lossy().to_string();
+                  if raw_name.starts_with("._") || raw_name.starts_with('.') {
+                    continue;
+                  }
+                  let name = raw_name.to_lowercase();
+                  if preferred_names
+                    .iter()
+                    .any(|candidate| name.contains(candidate))
+                  {
+                    return Ok(leaf_path);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    Err("Orbita executable not found in installed directory".into())
+  }
   pub fn is_orbita_version_downloaded(install_dir: &Path) -> bool {
     if let Ok(entries) = std::fs::read_dir(install_dir) {
       for entry in entries.flatten() {
@@ -977,8 +1091,6 @@ impl Browser for ChromiumBrowser {
       "--disable-session-crashed-bubble".to_string(),
       "--hide-crash-restore-bubble".to_string(),
       "--disable-infobars".to_string(),
-      // Disable QUIC/HTTP3 to ensure traffic goes through HTTP proxy
-      "--disable-quic".to_string(),
     ];
 
     // Add remote debugging if requested
@@ -998,6 +1110,7 @@ impl Browser for ChromiumBrowser {
         "--proxy-server=http://{}:{}",
         proxy.host, proxy.port
       ));
+      args.push("--disable-quic".to_string());
     }
 
     if let Some(url) = url {
@@ -1183,7 +1296,6 @@ impl Browser for WayfernBrowser {
       "--disable-session-crashed-bubble".to_string(),
       "--hide-crash-restore-bubble".to_string(),
       "--disable-infobars".to_string(),
-      "--disable-quic".to_string(),
       // Wayfern-specific args for automation
       "--disable-features=DialMediaRouteProvider".to_string(),
       "--use-mock-keychain".to_string(),
@@ -1207,6 +1319,7 @@ impl Browser for WayfernBrowser {
         "--proxy-server=http://{}:{}",
         proxy.host, proxy.port
       ));
+      args.push("--disable-quic".to_string());
     }
 
     if let Some(url) = url {
@@ -1289,11 +1402,10 @@ impl Browser for OrbitaBrowser {
       "--disable-session-crashed-bubble".to_string(),
       "--hide-crash-restore-bubble".to_string(),
       "--disable-infobars".to_string(),
-      "--disable-quic".to_string(),
-      // Orbita specific args from researches
-      "--donut-pie={{test:test}}".to_string(),
       "--disable-encryption".to_string(),
       "--password-store=basic".to_string(),
+      "--font-masking-mode=2".to_string(),
+      "--lang=en-US".to_string(),
     ];
 
     if let Some(port) = remote_debugging_port {
@@ -1310,11 +1422,13 @@ impl Browser for OrbitaBrowser {
         "--proxy-server=http://{}:{}",
         proxy.host, proxy.port
       ));
-      // Add host resolver rules for better proxy stability as seen in source
-      args.push(format!(
-        "--host-resolver-rules=MAP * 0.0.0.0 , EXCLUDE {}",
-        proxy.host
-      ));
+      args.push("--disable-quic".to_string());
+      if proxy.host != "127.0.0.1" && proxy.host != "localhost" {
+        args.push(format!(
+          "--host-resolver-rules=MAP * 0.0.0.0 , EXCLUDE {}",
+          proxy.host
+        ));
+      }
     }
 
     if let Some(url) = url {
@@ -1355,6 +1469,107 @@ impl Browser for OrbitaBrowser {
   }
 }
 
+pub struct CloakBrowser;
+
+impl CloakBrowser {
+  pub fn new() -> Self {
+    Self
+  }
+}
+
+impl Browser for CloakBrowser {
+  fn get_executable_path(&self, install_dir: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    #[cfg(target_os = "macos")]
+    return macos::get_chromium_executable_path(install_dir);
+
+    #[cfg(target_os = "linux")]
+    return linux::get_chromium_executable_path(install_dir, &BrowserType::CloakBrowser);
+
+    #[cfg(target_os = "windows")]
+    return windows::get_chromium_executable_path(install_dir, &BrowserType::CloakBrowser);
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    Err("Unsupported platform".into())
+  }
+
+  fn create_launch_args(
+    &self,
+    profile_path: &str,
+    proxy_settings: Option<&ProxySettings>,
+    url: Option<String>,
+    remote_debugging_port: Option<u16>,
+    headless: bool,
+  ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut args = vec![
+      format!("--user-data-dir={}", profile_path),
+      "--no-default-browser-check".to_string(),
+      "--disable-background-mode".to_string(),
+      "--disable-component-update".to_string(),
+      "--disable-background-timer-throttling".to_string(),
+      "--crash-server-url=".to_string(),
+      "--disable-updater".to_string(),
+      "--disable-session-crashed-bubble".to_string(),
+      "--hide-crash-restore-bubble".to_string(),
+      "--no-restore-session-state".to_string(),
+      "--disable-infobars".to_string(),
+      "--password-store=basic".to_string(),
+    ];
+
+    if let Some(port) = remote_debugging_port {
+      args.push("--remote-debugging-address=127.0.0.1".to_string());
+      args.push(format!("--remote-debugging-port={port}"));
+    }
+
+    if headless {
+      args.push("--headless=new".to_string());
+    }
+
+    if let Some(proxy) = proxy_settings {
+      args.push(format!(
+        "--proxy-server=http://{}:{}",
+        proxy.host, proxy.port
+      ));
+      args.push("--disable-quic".to_string());
+    }
+
+    if let Some(url) = url {
+      args.push(url);
+    }
+
+    Ok(args)
+  }
+
+  fn is_version_downloaded(&self, version: &str, binaries_dir: &Path) -> bool {
+    let install_dir = binaries_dir.join("cloakbrowser").join(version);
+
+    #[cfg(target_os = "macos")]
+    return macos::is_chromium_version_downloaded(&install_dir);
+
+    #[cfg(target_os = "linux")]
+    return linux::is_chromium_version_downloaded(&install_dir, &BrowserType::CloakBrowser);
+
+    #[cfg(target_os = "windows")]
+    return windows::is_chromium_version_downloaded(&install_dir, &BrowserType::CloakBrowser);
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    false
+  }
+
+  fn prepare_executable(&self, executable_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(target_os = "macos")]
+    return macos::prepare_executable(executable_path);
+
+    #[cfg(target_os = "linux")]
+    return linux::prepare_executable(executable_path);
+
+    #[cfg(target_os = "windows")]
+    return windows::prepare_executable(executable_path);
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    Err("Unsupported platform".into())
+  }
+}
+
 pub struct BrowserFactory;
 
 impl BrowserFactory {
@@ -1375,6 +1590,7 @@ impl BrowserFactory {
       BrowserType::Camoufox => Box::new(CamoufoxBrowser::new()),
       BrowserType::Wayfern => Box::new(WayfernBrowser::new()),
       BrowserType::Orbita => Box::new(OrbitaBrowser::new()),
+      BrowserType::CloakBrowser => Box::new(CloakBrowser::new()),
     }
   }
 }

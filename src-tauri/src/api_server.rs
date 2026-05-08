@@ -612,6 +612,7 @@ async fn create_profile(
       camoufox_config,
       wayfern_config,
       orbita_config,
+      None, // cloakbrowser_config
       request.group_id.clone(),
       None, // username
       None, // password

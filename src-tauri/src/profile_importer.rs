@@ -551,6 +551,7 @@ impl ProfileImporter {
       camoufox_config: None,
       wayfern_config: None,
       orbita_config: None,
+      cloakbrowser_config: None,
       group_id: None,
       tags: Vec::new(),
       note: None,

@@ -1,5 +1,6 @@
 use crate::browser::{create_browser, BrowserType, ProxySettings};
 use crate::camoufox_manager::CamoufoxConfig;
+use crate::cloakbrowser_manager::CloakBrowserConfig;
 use crate::events;
 use crate::profile::types::BrowserProfile;
 use crate::wayfern_manager::WayfernConfig;
@@ -103,6 +104,7 @@ impl ProfileManager {
     camoufox_config: Option<CamoufoxConfig>,
     wayfern_config: Option<WayfernConfig>,
     orbita_config: Option<WayfernConfig>,
+    cloakbrowser_config: Option<CloakBrowserConfig>,
     group_id: Option<String>,
     username: Option<String>,
     password: Option<String>,
@@ -154,6 +156,7 @@ impl ProfileManager {
           camoufox_config: None,
           wayfern_config: None,
           orbita_config: None,
+          cloakbrowser_config: None,
           group_id: group_id.clone(),
           tags: Vec::new(),
           note: None,
@@ -224,6 +227,7 @@ impl ProfileManager {
           camoufox_config: None,
           wayfern_config: None,
           orbita_config: None,
+          cloakbrowser_config: None,
           group_id: group_id.clone(),
           tags: Vec::new(),
           note: None,
@@ -285,6 +289,7 @@ impl ProfileManager {
           camoufox_config: None,
           wayfern_config: None,
           orbita_config: None,
+          cloakbrowser_config: None,
           group_id: group_id.clone(),
           tags: Vec::new(),
           note: None,
@@ -318,6 +323,16 @@ impl ProfileManager {
       orbita_config
     };
 
+    let final_cloakbrowser_config = if browser == "cloakbrowser" {
+      let mut config = cloakbrowser_config.unwrap_or_default();
+      if config.seed.is_none() {
+        config.seed = Some(CloakBrowserConfig::generate_seed());
+      }
+      Some(config)
+    } else {
+      cloakbrowser_config
+    };
+
     let profile = BrowserProfile {
       id: profile_id,
       name: name.to_string(),
@@ -330,6 +345,7 @@ impl ProfileManager {
       camoufox_config: final_camoufox_config,
       wayfern_config: final_wayfern_config,
       orbita_config: final_orbita_config,
+      cloakbrowser_config: final_cloakbrowser_config,
       group_id: group_id.clone(),
       tags: Vec::new(),
       note: None,
@@ -779,6 +795,7 @@ pub async fn create_browser_profile_new(
   camoufox_config: Option<CamoufoxConfig>,
   wayfern_config: Option<WayfernConfig>,
   orbita_config: Option<WayfernConfig>,
+  cloakbrowser_config: Option<CloakBrowserConfig>,
   group_id: Option<String>,
   username: Option<String>,
   password: Option<String>,
@@ -794,6 +811,7 @@ pub async fn create_browser_profile_new(
       camoufox_config,
       wayfern_config,
       orbita_config,
+      cloakbrowser_config,
       group_id,
       username,
       password,
@@ -870,7 +888,7 @@ pub async fn check_browser_status(
   app_handle: tauri::AppHandle,
   profile: BrowserProfile,
 ) -> Result<bool, String> {
-  ProfileManager::instance()
+  crate::browser_runner::BrowserRunner::instance()
     .check_browser_status(app_handle, &profile)
     .await
     .map_err(|e| e.to_string())

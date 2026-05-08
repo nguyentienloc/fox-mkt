@@ -12,8 +12,27 @@ pub mod macos {
   pub async fn launch_browser_process(
     executable_path: &std::path::Path,
     args: &[String],
+    use_launch_services: bool,
+    log_file_path: Option<&Path>,
   ) -> Result<std::process::Child, Box<dyn std::error::Error + Send + Sync>> {
     log::info!("Launching browser on macOS: {executable_path:?} with args: {args:?}");
+    if !use_launch_services {
+      let mut cmd = Command::new(executable_path);
+      cmd.args(args);
+
+      if let Some(log_file_path) = log_file_path {
+        let log_file = std::fs::OpenOptions::new()
+          .create(true)
+          .append(true)
+          .open(log_file_path)?;
+        let stderr_file = log_file.try_clone()?;
+        cmd.stdout(std::process::Stdio::from(log_file));
+        cmd.stderr(std::process::Stdio::from(stderr_file));
+      }
+
+      return Ok(cmd.spawn()?);
+    }
+
     // If the executable is inside an app bundle, launch via Launch Services so
     // macOS recognizes the real application for privacy permissions (e.g. Screen Recording).
     // This ensures TCC prompts are attributed to the browser app, not our launcher.

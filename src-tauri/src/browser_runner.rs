@@ -1,5 +1,6 @@
 use crate::browser::{create_browser, BrowserType, ProxySettings};
 use crate::camoufox_manager::{CamoufoxConfig, CamoufoxManager};
+use crate::cloakbrowser_manager::CloakBrowserConfig;
 use crate::downloaded_browsers_registry::DownloadedBrowsersRegistry;
 use crate::events;
 use crate::platform_browser;
@@ -8,9 +9,10 @@ use crate::proxy_manager::PROXY_MANAGER;
 use crate::wayfern_manager::{WayfernConfig, WayfernManager};
 use directories::BaseDirs;
 use serde::Serialize;
-use std::path::PathBuf;
+use serde_json::Value;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use sysinfo::System;
+use sysinfo::{ProcessStatus, System};
 pub struct BrowserRunner {
   base_dirs: BaseDirs,
   pub profile_manager: &'static ProfileManager,
@@ -203,6 +205,496 @@ impl BrowserRunner {
     None
   }
 
+  fn normalize_cloak_platform(platform: &str) -> Option<String> {
+    let platform = platform.trim().to_ascii_lowercase();
+    if platform.is_empty() {
+      return None;
+    }
+
+    if platform.contains("android") {
+      return Some("android".to_string());
+    }
+    if platform.contains("mac") || platform.contains("darwin") {
+      return Some("macos".to_string());
+    }
+    if platform.contains("win") {
+      return Some("windows".to_string());
+    }
+    if platform.contains("linux") || platform.contains("x11") {
+      return Some("linux".to_string());
+    }
+
+    None
+  }
+
+  fn platform_from_user_agent(user_agent: &str) -> Option<String> {
+    Self::normalize_cloak_platform(user_agent)
+  }
+
+  fn json_string(value: &Value, key: &str) -> Option<String> {
+    value
+      .get(key)
+      .and_then(|item| item.as_str())
+      .map(str::trim)
+      .filter(|item| !item.is_empty())
+      .map(ToOwned::to_owned)
+  }
+
+  fn first_language_from_value(value: &Value) -> Option<String> {
+    if let Some(item) = value.as_str() {
+      let item = item.trim();
+      if item.is_empty() {
+        return None;
+      }
+
+      if item.starts_with('[') {
+        if let Ok(parsed) = serde_json::from_str::<Vec<String>>(item) {
+          return parsed
+            .into_iter()
+            .map(|lang| lang.trim().to_string())
+            .find(|lang| !lang.is_empty());
+        }
+      }
+
+      return Some(item.to_string());
+    }
+
+    value.as_array().and_then(|items| {
+      items
+        .iter()
+        .filter_map(|item| item.as_str())
+        .map(str::trim)
+        .find(|item| !item.is_empty())
+        .map(ToOwned::to_owned)
+    })
+  }
+
+  fn locale_from_fingerprint(fingerprint: &Value) -> Option<String> {
+    if let Some(locale) = Self::json_string(fingerprint, "locale:all") {
+      return Some(locale);
+    }
+
+    if let Some(locale) = Self::json_string(fingerprint, "navigator.language") {
+      return Some(locale);
+    }
+
+    if let Some(locale) = fingerprint
+      .get("languages")
+      .and_then(Self::first_language_from_value)
+    {
+      return Some(locale);
+    }
+
+    let language = Self::json_string(fingerprint, "locale:language")
+      .or_else(|| Self::json_string(fingerprint, "language"));
+    let region = Self::json_string(fingerprint, "locale:region");
+
+    match (language, region) {
+      (Some(language), Some(region)) if !language.contains('-') => {
+        Some(format!("{language}-{region}"))
+      }
+      (Some(language), _) => Some(language),
+      _ => None,
+    }
+  }
+
+  fn app_dir_name() -> &'static str {
+    if cfg!(debug_assertions) {
+      "FoxiaDev"
+    } else {
+      "Foxia"
+    }
+  }
+
+  fn remove_runtime_file(path: &Path, relative_path: &str) -> usize {
+    log::info!(
+      "Checking file: {} (exists: {})",
+      relative_path,
+      path.exists()
+    );
+    if !path.exists() {
+      return 0;
+    }
+
+    match std::fs::remove_file(path) {
+      Ok(_) => {
+        log::info!("✓ Removed: {}", relative_path);
+        1
+      }
+      Err(e) => {
+        log::error!("✗ Failed to remove {}: {}", relative_path, e);
+        0
+      }
+    }
+  }
+
+  fn remove_runtime_dir(path: &Path, relative_path: &str) -> usize {
+    log::info!(
+      "Checking dir: {} (exists: {})",
+      relative_path,
+      path.exists()
+    );
+    if !path.exists() {
+      return 0;
+    }
+
+    match std::fs::remove_dir_all(path) {
+      Ok(_) => {
+        log::info!("✓ Removed dir: {}", relative_path);
+        1
+      }
+      Err(e) => {
+        log::error!("✗ Failed to remove dir {}: {}", relative_path, e);
+        0
+      }
+    }
+  }
+
+  fn clean_runtime_state_root(root_path: &Path, label: &str) -> usize {
+    log::info!(
+      "Cleaning runtime root [{}]: {}\nExists: {}",
+      label,
+      root_path.display(),
+      root_path.exists()
+    );
+
+    if !root_path.exists() {
+      return 0;
+    }
+
+    let files_to_remove = [
+      "Local State",
+      "Preferences",
+      "Secure Preferences",
+      "SingletonLock",
+      "SingletonSocket",
+      "SingletonCookie",
+      "lockfile",
+      "Default/Preferences",
+      "Default/Secure Preferences",
+      "Default/Current Session",
+      "Default/Current Tabs",
+      "Default/Last Session",
+      "Default/Last Tabs",
+      "Default/LOCK",
+      "Default/LOG",
+      "Default/LOG.old",
+    ];
+    let dirs_to_remove = [
+      "Default/Sessions",
+      "Default/Session Storage",
+      "Default/Cache",
+      "Default/Code Cache",
+      "Default/GPUCache",
+      "Default/DawnGraphiteCache",
+      "Default/DawnWebGPUCache",
+      "Default/Network",
+      "Default/Service Worker/ScriptCache",
+    ];
+
+    let mut removed_count = 0;
+    for relative_path in files_to_remove {
+      removed_count += Self::remove_runtime_file(&root_path.join(relative_path), relative_path);
+    }
+
+    for relative_path in dirs_to_remove {
+      removed_count += Self::remove_runtime_dir(&root_path.join(relative_path), relative_path);
+    }
+
+    removed_count
+  }
+
+  fn get_cloakbrowser_remap_profile_data_path(&self, profile_id: &uuid::Uuid) -> PathBuf {
+    self
+      .profile_manager
+      .get_profiles_dir()
+      .join(profile_id.to_string())
+      .join("cloakbrowser-profile")
+  }
+
+  fn get_orbita_source_profile_data_path(&self, profile: &BrowserProfile) -> PathBuf {
+    let profiles_dir = self.profile_manager.get_profiles_dir();
+    profile.get_profile_data_path(&profiles_dir)
+  }
+
+  fn get_orbita_remap_migration_marker_path(&self, profile_id: &uuid::Uuid) -> PathBuf {
+    self
+      .get_cloakbrowser_remap_profile_data_path(profile_id)
+      .join(".orbita-history-migrated")
+  }
+
+  fn copy_if_exists(
+    source: &Path,
+    destination: &Path,
+    label: &str,
+  ) -> Result<bool, Box<dyn std::error::Error>> {
+    if !source.exists() {
+      return Ok(false);
+    }
+
+    if let Some(parent) = destination.parent() {
+      std::fs::create_dir_all(parent)?;
+    }
+
+    std::fs::copy(source, destination)?;
+    log::info!(
+      "Migrated Orbita data file '{}' from {} to {}",
+      label,
+      source.display(),
+      destination.display()
+    );
+    Ok(true)
+  }
+
+  fn migrate_orbita_profile_data_for_cloakbrowser(
+    &self,
+    profile: &BrowserProfile,
+  ) -> Result<(), Box<dyn std::error::Error>> {
+    let source_root = self.get_orbita_source_profile_data_path(profile);
+    let destination_root = self.get_cloakbrowser_remap_profile_data_path(&profile.id);
+    let marker_path = self.get_orbita_remap_migration_marker_path(&profile.id);
+
+    if marker_path.exists() {
+      log::info!(
+        "Orbita migration marker exists for profile '{}', skipping history migration",
+        profile.name
+      );
+      return Ok(());
+    }
+
+    if !source_root.exists() {
+      log::warn!(
+        "Orbita source profile data missing for '{}', skipping migration: {}",
+        profile.name,
+        source_root.display()
+      );
+      return Ok(());
+    }
+
+    std::fs::create_dir_all(&destination_root)?;
+
+    let files_to_copy = [
+      "First Run",
+      "Default/Bookmarks",
+      "Default/Bookmarks.bak",
+      "Default/History",
+      "Default/History-journal",
+      "Default/Favicons",
+      "Default/Favicons-journal",
+      "Default/Visited Links",
+      "Default/Top Sites",
+      "Default/Top Sites-journal",
+      "Default/Shortcuts",
+      "Default/Shortcuts-journal",
+    ];
+
+    let mut copied_count = 0;
+    for relative_path in files_to_copy {
+      let source_path = source_root.join(relative_path);
+      let destination_path = destination_root.join(relative_path);
+      if Self::copy_if_exists(&source_path, &destination_path, relative_path)? {
+        copied_count += 1;
+      }
+    }
+
+    std::fs::write(
+      &marker_path,
+      format!(
+        "migrated_at={}
+source={}
+copied_files={}
+",
+        chrono::Utc::now().to_rfc3339(),
+        source_root.display(),
+        copied_count
+      ),
+    )?;
+
+    log::info!(
+      "Orbita history migration complete for '{}': copied {} files into {}",
+      profile.name,
+      copied_count,
+      destination_root.display()
+    );
+
+    Ok(())
+  }
+
+  fn get_launch_profile_data_path(
+    &self,
+    profile: &BrowserProfile,
+    orbita_remap_requested: bool,
+  ) -> PathBuf {
+    if orbita_remap_requested {
+      return self.get_cloakbrowser_remap_profile_data_path(&profile.id);
+    }
+
+    let profiles_dir = self.profile_manager.get_profiles_dir();
+    profile.get_profile_data_path(&profiles_dir)
+  }
+
+  fn clean_orbita_profile_data(
+    &self,
+    profile_data_path: &Path,
+  ) -> Result<(), Box<dyn std::error::Error>> {
+    log::info!(
+      "=== CLEANING ORBITA PROFILE DATA ===\nPath: {}\nExists: {}",
+      profile_data_path.display(),
+      profile_data_path.exists()
+    );
+
+    if !profile_data_path.exists() {
+      log::warn!("Profile data path does not exist, skipping clean");
+      return Ok(());
+    }
+
+    let mut removed_count = Self::clean_runtime_state_root(profile_data_path, "profile-data");
+
+    let app_data_root = self.base_dirs.data_local_dir().join(Self::app_dir_name());
+    if let Ok(relative_path) = profile_data_path.strip_prefix(&app_data_root) {
+      let cache_root = self
+        .base_dirs
+        .cache_dir()
+        .join(Self::app_dir_name())
+        .join(relative_path);
+      removed_count += Self::clean_runtime_state_root(&cache_root, "cache-data");
+    } else {
+      log::warn!(
+        "Profile data path is outside app data root, skipping cache cleanup: {}",
+        profile_data_path.display()
+      );
+    }
+
+    // Remove macOS Saved Application State directory (causes crash on restore)
+    let saved_state_dir = profile_data_path.join("Saved Application State");
+    log::info!(
+      "Checking Saved Application State dir (exists: {})",
+      saved_state_dir.exists()
+    );
+    if saved_state_dir.exists() {
+      match std::fs::remove_dir_all(&saved_state_dir) {
+        Ok(_) => {
+          removed_count += 1;
+          log::info!("✓ Removed: Saved Application State directory");
+        }
+        Err(e) => {
+          log::error!("✗ Failed to remove Saved Application State: {}", e);
+        }
+      }
+    }
+
+    log::info!("=== CLEAN COMPLETE: {} items removed ===", removed_count);
+    Ok(())
+  }
+
+  fn build_cloakbrowser_config(profile: &BrowserProfile) -> CloakBrowserConfig {
+    let mut config = profile.cloakbrowser_config.clone().unwrap_or_default();
+
+    if config.seed.is_none() {
+      config.seed = Some(CloakBrowserConfig::generate_seed());
+    }
+
+    let browser_config = profile
+      .orbita_config
+      .as_ref()
+      .or(profile.wayfern_config.as_ref());
+    let fingerprint = browser_config
+      .and_then(|cfg| cfg.fingerprint.as_ref())
+      .and_then(|raw| serde_json::from_str::<Value>(raw).ok());
+
+    if config.platform.is_none() {
+      config.platform = browser_config
+        .and_then(|cfg| cfg.os.as_deref())
+        .and_then(Self::normalize_cloak_platform)
+        .or_else(|| {
+          fingerprint
+            .as_ref()
+            .and_then(|value| Self::json_string(value, "platform"))
+            .and_then(|value| Self::normalize_cloak_platform(&value))
+        })
+        .or_else(|| {
+          fingerprint
+            .as_ref()
+            .and_then(|value| Self::json_string(value, "navigator.platform"))
+            .and_then(|value| Self::normalize_cloak_platform(&value))
+        });
+    }
+
+    if config.timezone.is_none() {
+      config.timezone = fingerprint
+        .as_ref()
+        .and_then(|value| Self::json_string(value, "timezone"));
+    }
+
+    if config.locale.is_none() {
+      config.locale = fingerprint.as_ref().and_then(Self::locale_from_fingerprint);
+    }
+
+    if config.user_agent.is_none() {
+      config.user_agent = fingerprint
+        .as_ref()
+        .and_then(|value| {
+          Self::json_string(value, "userAgent")
+            .or_else(|| Self::json_string(value, "navigator.userAgent"))
+            .or_else(|| Self::json_string(value, "headers.User-Agent"))
+        })
+        .or_else(|| profile.user_agent.clone());
+    }
+
+    if config.platform.is_none() {
+      config.platform = config
+        .user_agent
+        .as_deref()
+        .and_then(Self::platform_from_user_agent);
+    }
+
+    config
+  }
+
+  fn build_browser_launch_log_path(&self, profile: &BrowserProfile) -> PathBuf {
+    let timestamp = SystemTime::now()
+      .duration_since(UNIX_EPOCH)
+      .map(|duration| duration.as_secs())
+      .unwrap_or_default();
+    std::env::temp_dir().join(format!("foxia-browser-{}-{timestamp}.log", profile.id))
+  }
+
+  fn latest_chromium_crash_report_path(&self) -> Option<PathBuf> {
+    let reports_dir = self
+      .base_dirs
+      .home_dir()
+      .join("Library")
+      .join("Logs")
+      .join("DiagnosticReports");
+
+    let mut entries: Vec<_> = std::fs::read_dir(reports_dir)
+      .ok()?
+      .filter_map(Result::ok)
+      .filter(|entry| {
+        entry
+          .file_name()
+          .to_str()
+          .map(|name| name.starts_with("Chromium-") && name.ends_with(".ips"))
+          .unwrap_or(false)
+      })
+      .collect();
+
+    entries.sort_by_key(|entry| entry.metadata().and_then(|m| m.modified()).ok());
+    entries.last().map(|entry| entry.path())
+  }
+
+  fn is_process_running_healthy(system: &System, pid: u32) -> bool {
+    system
+      .process(sysinfo::Pid::from(pid as usize))
+      .map(|process| {
+        !matches!(
+          process.status(),
+          ProcessStatus::Zombie | ProcessStatus::Dead
+        )
+      })
+      .unwrap_or(false)
+  }
+
   pub async fn launch_browser(
     &self,
     app_handle: tauri::AppHandle,
@@ -224,6 +716,97 @@ impl BrowserRunner {
     remote_debugging_port: Option<u16>,
     headless: bool,
   ) -> Result<BrowserProfile, Box<dyn std::error::Error + Send + Sync>> {
+    let profile_to_persist = profile.clone();
+    let orbita_remap_requested = profile.browser == "orbita";
+
+    // Remap Orbita profiles to use CloakBrowser (Foxia Browser)
+    let profile_owned = if profile.browser == "orbita" {
+      log::info!(
+        "Remapping Orbita profile '{}' to use CloakBrowser (Foxia Browser)",
+        profile.name
+      );
+      let registry = crate::downloaded_browsers_registry::DownloadedBrowsersRegistry::instance();
+      let mut cloakbrowser_versions = registry.get_downloaded_versions("cloakbrowser");
+      cloakbrowser_versions.sort_by(|a, b| crate::api_client::compare_versions(b, a));
+
+      let cloak_version = cloakbrowser_versions.into_iter().next().ok_or_else(|| {
+        "No Foxia Browser version downloaded. Please download Foxia Browser first.".to_string()
+      })?;
+
+      if let Err(e) = self.migrate_orbita_profile_data_for_cloakbrowser(profile) {
+        log::error!(
+          "Failed to migrate Orbita history for '{}': {}",
+          profile.name,
+          e
+        );
+      }
+
+      let cloak_config = Self::build_cloakbrowser_config(profile);
+
+      // Clean Orbita-specific files from profile data dir to prevent conflicts
+      let profile_data_path =
+        self.get_launch_profile_data_path(profile, profile.browser == "orbita");
+      log::info!(
+        "Profile data path for Orbita->CloakBrowser remap: {}",
+        profile_data_path.display()
+      );
+      if let Err(e) = self.clean_orbita_profile_data(&profile_data_path) {
+        log::error!(
+          "Failed to clean Orbita profile data for '{}': {}",
+          profile.name,
+          e
+        );
+      } else {
+        log::info!(
+          "Successfully cleaned Orbita profile data for '{}'",
+          profile.name
+        );
+      }
+
+      let mut remapped = profile.clone();
+      remapped.browser = "cloakbrowser".to_string();
+      remapped.version = cloak_version;
+      remapped.cloakbrowser_config = Some(cloak_config);
+      remapped
+    } else {
+      profile.clone()
+    };
+    let profile = &profile_owned;
+
+    // Clean Orbita-specific files for CloakBrowser profiles on every launch
+    // (handles profiles already remapped from Orbita in previous sessions)
+    if profile.browser == "cloakbrowser" {
+      let profile_data_path = self.get_launch_profile_data_path(profile, orbita_remap_requested);
+      log::info!(
+        "Cleaning profile data for CloakBrowser launch: {}",
+        profile_data_path.display()
+      );
+      if let Err(e) = self.clean_orbita_profile_data(&profile_data_path) {
+        log::error!("Failed to clean profile data for '{}': {}", profile.name, e);
+      }
+
+      #[cfg(target_os = "macos")]
+      {
+        let saved_state_path = self
+          .base_dirs
+          .home_dir()
+          .join("Library")
+          .join("Saved Application State")
+          .join("org.chromium.Chromium.savedState");
+        if saved_state_path.exists() {
+          match std::fs::remove_dir_all(&saved_state_path) {
+            Ok(_) => log::info!("Removed macOS savedState: {}", saved_state_path.display()),
+            Err(e) => log::error!("Failed to remove macOS savedState: {}", e),
+          }
+        } else {
+          log::info!(
+            "macOS savedState not found (already clean): {}",
+            saved_state_path.display()
+          );
+        }
+      }
+    }
+
     // Check if browser is disabled due to ongoing update
     if self.auto_updater.is_browser_disabled(&profile.browser)? {
       return Err(
@@ -626,6 +1209,15 @@ impl BrowserRunner {
       return Ok(updated_profile);
     }
 
+    let url = if orbita_remap_requested && url.is_none() {
+      log::info!(
+        "Orbita remap launch without URL, forcing https://www.google.com to avoid Chromium internal page crash path"
+      );
+      Some("https://www.google.com".to_string())
+    } else {
+      url
+    };
+
     // Create browser instance
     let browser_type = BrowserType::from_str(&profile.browser)
       .map_err(|_| format!("Invalid browser type: {}", profile.browser))?;
@@ -656,8 +1248,7 @@ impl BrowserRunner {
     let proxy_for_launch_args: Option<&ProxySettings> = local_proxy_settings;
 
     // Get profile data path and launch arguments
-    let profiles_dir = self.profile_manager.get_profiles_dir();
-    let profile_data_path = profile.get_profile_data_path(&profiles_dir);
+    let profile_data_path = self.get_launch_profile_data_path(profile, orbita_remap_requested);
     let browser_args = browser
       .create_launch_args(
         &profile_data_path.to_string_lossy(),
@@ -668,11 +1259,48 @@ impl BrowserRunner {
       )
       .expect("Failed to create launch arguments");
 
+    // For CloakBrowser, inject fingerprint args from config
+    let resolved_cloakbrowser_config = if profile.browser == "cloakbrowser" {
+      Some(Self::build_cloakbrowser_config(profile))
+    } else {
+      None
+    };
+    let browser_args = if profile.browser == "cloakbrowser" {
+      let mut args = browser_args;
+      let config = resolved_cloakbrowser_config
+        .clone()
+        .unwrap_or_else(CloakBrowserConfig::default);
+      args.extend(config.to_launch_args());
+      #[cfg(target_os = "macos")]
+      {
+        args.push("--enable-logging=stderr".to_string());
+        args.push("--v=1".to_string());
+      }
+      args
+    } else {
+      browser_args
+    };
+
+    let browser_log_path = if cfg!(target_os = "macos") && profile.browser == "cloakbrowser" {
+      let path = self.build_browser_launch_log_path(profile);
+      log::info!("CloakBrowser launch log path: {}", path.display());
+      Some(path)
+    } else {
+      None
+    };
+
     // Launch browser using platform-specific method
     let child = {
       #[cfg(target_os = "macos")]
       {
-        platform_browser::macos::launch_browser_process(&executable_path, &browser_args).await?
+        let use_launch_services = profile.browser != "cloakbrowser";
+        platform_browser::macos::launch_browser_process(
+          &executable_path,
+          &browser_args,
+          use_launch_services,
+          browser_log_path.as_deref(),
+        )
+        .await?
       }
 
       #[cfg(target_os = "windows")]
@@ -709,98 +1337,53 @@ impl BrowserRunner {
         tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
 
         let system = System::new_all();
-        let profiles_dir = self.profile_manager.get_profiles_dir();
-        let profile_data_path = profile.get_profile_data_path(&profiles_dir);
+        let profile_data_path = self.get_launch_profile_data_path(profile, orbita_remap_requested);
         let profile_data_path_str = profile_data_path.to_string_lossy();
 
         let mut resolved_pid = launcher_pid;
 
         for (pid, process) in system.processes() {
-          let cmd = process.cmd();
+          let cmd: Vec<String> = process
+            .cmd()
+            .iter()
+            .filter_map(|arg| arg.to_str().map(str::to_owned))
+            .collect();
           if cmd.is_empty() {
             continue;
           }
 
-          // Determine if this process matches the intended browser type
-          let exe_name_lower = process.name().to_string_lossy().to_lowercase();
-          let is_correct_browser = match profile.browser.as_str() {
-            "firefox" => {
-              exe_name_lower.contains("firefox")
-                && !exe_name_lower.contains("developer")
-                && !exe_name_lower.contains("camoufox")
-            }
-            "firefox-developer" => {
-              // More flexible detection for Firefox Developer Edition
-              (exe_name_lower.contains("firefox") && exe_name_lower.contains("developer"))
-                || (exe_name_lower.contains("firefox")
-                  && cmd.iter().any(|arg| {
-                    let arg_str = arg.to_str().unwrap_or("");
-                    arg_str.contains("Developer")
-                      || arg_str.contains("developer")
-                      || arg_str.contains("FirefoxDeveloperEdition")
-                      || arg_str.contains("firefox-developer")
-                  }))
-                || exe_name_lower == "firefox" // Firefox Developer might just show as "firefox"
-            }
-            "zen" => exe_name_lower.contains("zen"),
-            "chromium" => exe_name_lower.contains("chromium") || exe_name_lower.contains("chrome"),
-            "brave" => exe_name_lower.contains("brave") || exe_name_lower.contains("Brave"),
-            _ => false,
-          };
-
-          if !is_correct_browser {
+          let exe_name = process.name().to_string_lossy().to_string();
+          if !Self::process_matches_browser(&profile.browser, &exe_name, &cmd) {
             continue;
           }
 
-          // Check for profile path match
-          let profile_path_match = if matches!(
-            profile.browser.as_str(),
-            "firefox" | "firefox-developer" | "zen"
-          ) {
-            // Firefox-based browsers: look for -profile argument followed by path
-            let mut found_profile_arg = false;
-            for (i, arg) in cmd.iter().enumerate() {
-              if let Some(arg_str) = arg.to_str() {
-                if arg_str == "-profile" && i + 1 < cmd.len() {
-                  if let Some(next_arg) = cmd.get(i + 1).and_then(|a| a.to_str()) {
-                    if next_arg == profile_data_path_str {
-                      found_profile_arg = true;
-                      break;
-                    }
-                  }
-                }
-                // Also check for combined -profile=path format
-                if arg_str == format!("-profile={profile_data_path_str}") {
-                  found_profile_arg = true;
-                  break;
-                }
-                // Check if the argument is the profile path directly
-                if arg_str == profile_data_path_str {
-                  found_profile_arg = true;
-                  break;
-                }
-              }
-            }
-            found_profile_arg
-          } else {
-            // Chromium-based browsers: look for --user-data-dir argument
-            cmd.iter().any(|s| {
-              if let Some(arg) = s.to_str() {
-                arg == format!("--user-data-dir={profile_data_path_str}")
-                  || arg == profile_data_path_str
-              } else {
-                false
-              }
-            })
-          };
-
-          if profile_path_match {
+          if Self::process_matches_profile_path(&profile.browser, &cmd, &profile_data_path_str) {
             let pid_u32 = pid.as_u32();
             if pid_u32 != launcher_pid {
               resolved_pid = pid_u32;
               break;
             }
           }
+        }
+
+        if profile.browser == "cloakbrowser"
+          && !Self::is_process_running_healthy(&system, resolved_pid)
+        {
+          let latest_crash_report = self
+            .latest_chromium_crash_report_path()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| "not found".to_string());
+          let browser_log_path = browser_log_path
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| "not configured".to_string());
+
+          return Err(
+            format!(
+              "CloakBrowser exited during launch. latest crash report: {latest_crash_report}. browser log: {browser_log_path}"
+            )
+            .into(),
+          );
         }
 
         resolved_pid
@@ -813,9 +1396,12 @@ impl BrowserRunner {
     };
 
     // Update profile with process info and save
-    let mut updated_profile = profile.clone();
+    let mut updated_profile = profile_to_persist;
     updated_profile.process_id = Some(actual_pid);
     updated_profile.last_launch = Some(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs());
+    if let Some(config) = resolved_cloakbrowser_config {
+      updated_profile.cloakbrowser_config = Some(config);
+    }
 
     self.save_process_info(&updated_profile)?;
     let _ = crate::tag_manager::TAG_MANAGER.lock().map(|tm| {
@@ -1046,7 +1632,10 @@ impl BrowserRunner {
         // Wayfern URL opening is handled differently
         Err("URL opening in existing Wayfern instance is not supported".into())
       }
-      BrowserType::Chromium | BrowserType::Brave | BrowserType::Orbita => {
+      BrowserType::Chromium
+      | BrowserType::Brave
+      | BrowserType::Orbita
+      | BrowserType::CloakBrowser => {
         #[cfg(target_os = "macos")]
         {
           let profiles_dir = self.profile_manager.get_profiles_dir();
@@ -1102,10 +1691,7 @@ impl BrowserRunner {
   ) -> Result<BrowserProfile, Box<dyn std::error::Error + Send + Sync>> {
     // Always start a local proxy for API launches
     // Determine upstream proxy if configured; otherwise use DIRECT
-    let upstream_proxy = profile
-      .proxy_id
-      .as_ref()
-      .and_then(|id| PROXY_MANAGER.get_proxy_settings_by_id(id));
+    let upstream_proxy = self.resolve_upstream_proxy(profile);
 
     // Use a temporary PID (1) to start the proxy, we'll update it after browser launch
     let temp_pid = 1u32;
@@ -1326,10 +1912,29 @@ impl BrowserRunner {
     app_handle: tauri::AppHandle,
     profile: &BrowserProfile,
   ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
-    self
-      .profile_manager
-      .check_browser_status(app_handle, profile)
-      .await
+    if profile.browser == "camoufox" {
+      return self
+        .profile_manager
+        .check_browser_status(app_handle, profile)
+        .await;
+    }
+
+    if let Some(process_id) = profile.process_id {
+      let system = System::new_all();
+      if system
+        .process(sysinfo::Pid::from(process_id as usize))
+        .is_some()
+      {
+        return Ok(true);
+      }
+    }
+
+    let matching_pids = self.find_browser_processes_by_profile(profile);
+    if !matching_pids.is_empty() {
+      return Ok(true);
+    }
+
+    Ok(false)
   }
 
   pub async fn kill_browser_process(
@@ -2100,8 +2705,7 @@ impl BrowserRunner {
     }
 
     // For non-camoufox/wayfern browsers, use the existing logic
-    let profiles_dir = self.profile_manager.get_profiles_dir();
-    let profile_data_path = profile.get_profile_data_path(&profiles_dir);
+    let profile_data_path = self.get_launch_profile_data_path(profile, profile.browser == "orbita");
     let profile_path_str = profile_data_path.to_string_lossy().to_string();
 
     let mut pids_to_kill = self.find_browser_processes_by_profile(profile);
@@ -2377,6 +2981,7 @@ impl BrowserRunner {
           || exe_name_lower.contains("chromium")
           || exe_name_lower.contains("chrome")
       }
+      "cloakbrowser" => exe_name_lower.contains("chromium") || exe_name_lower.contains("chrome"),
       _ => false,
     }
   }
@@ -2408,17 +3013,11 @@ impl BrowserRunner {
     })
   }
 
-  fn find_browser_processes_by_profile(&self, profile: &BrowserProfile) -> Vec<u32> {
+  pub(crate) fn find_browser_processes_by_profile(&self, profile: &BrowserProfile) -> Vec<u32> {
     let system = System::new_all();
     let profiles_dir = self.profile_manager.get_profiles_dir();
     let profile_data_path = profile.get_profile_data_path(&profiles_dir);
     let profile_data_path_str = profile_data_path.to_string_lossy().to_string();
-
-    log::info!(
-      "Searching for {} browser processes with profile path: {}",
-      profile.browser,
-      profile_data_path_str
-    );
 
     let mut matching_pids = Vec::new();
 
@@ -2447,16 +3046,6 @@ impl BrowserRunner {
     matching_pids.sort_unstable();
     matching_pids.dedup();
 
-    if !matching_pids.is_empty() {
-      log::info!(
-        "Found matching {} browser processes {:?} for profile: {} (ID: {})",
-        profile.browser,
-        matching_pids,
-        profile.name,
-        profile.id
-      );
-    }
-
     matching_pids
   }
 
@@ -2478,9 +3067,7 @@ impl BrowserRunner {
 
     log::info!("Opening URL '{url}' with profile '{profile_id}'");
 
-    // Use launch_or_open_url which handles both launching new instances and opening in existing ones
-    self
-      .launch_or_open_url(app_handle, &profile, Some(url.clone()), None)
+    launch_browser_profile(app_handle, profile, Some(url.clone()))
       .await
       .map_err(|e| {
         log::info!("Failed to open URL with profile '{profile_id}': {e}");
@@ -2550,13 +3137,14 @@ pub async fn launch_browser_profile(
 
   // Always start a local proxy before launching (non-Camoufox/Wayfern handled here; they have their own flow)
   // This ensures all traffic goes through the local proxy for monitoring and future features
-  if profile.browser != "camoufox" && profile.browser != "wayfern" {
+  if profile_for_launch.browser != "camoufox" && profile_for_launch.browser != "wayfern" {
     // Determine upstream proxy if configured; otherwise use DIRECT (no upstream)
     let upstream_proxy = browser_runner.resolve_upstream_proxy(&profile_for_launch);
+    let has_upstream_proxy = upstream_proxy.is_some();
 
     // Use a temporary PID (1) to start the proxy, we'll update it after browser launch
     let temp_pid = 1u32;
-    let profile_id_str = profile.id.to_string();
+    let profile_id_str = profile_for_launch.id.to_string();
 
     // Always start a local proxy, even if there's no upstream proxy
     // This allows for traffic monitoring and future features
@@ -2570,8 +3158,9 @@ pub async fn launch_browser_profile(
       .await
     {
       Ok(internal_proxy) => {
-        // Use internal proxy for subsequent launch
-        internal_proxy_settings = Some(internal_proxy.clone());
+        if has_upstream_proxy {
+          internal_proxy_settings = Some(internal_proxy.clone());
+        }
 
         // For Firefox-based browsers, always apply PAC/user.js to point to the local proxy
         if matches!(
@@ -2647,21 +3236,152 @@ pub async fn launch_browser_profile(
     // Check if the error is due to missing browser executable
     if error_str.contains("executable not found") || error_str.contains("does not exist on disk") {
       log::info!(
-        "Missing browser detected for {}, triggering download",
+        "Missing browser detected for {}, checking registry for available versions",
         profile_for_launch.browser
       );
+
+      // Check if another downloaded version exists in registry (version mismatch case)
+      let downloaded_versions = browser_runner
+        .downloaded_browsers_registry
+        .get_downloaded_versions(&profile_for_launch.browser);
+
+      if let Some(available_version) = downloaded_versions.into_iter().find(|v| {
+        browser_runner
+          .downloaded_browsers_registry
+          .is_browser_downloaded(&profile_for_launch.browser, v)
+      }) {
+        if available_version != profile_for_launch.version {
+          log::info!(
+            "Found already-downloaded version {} for {} (profile had {}), updating profile version",
+            available_version,
+            profile_for_launch.browser,
+            profile_for_launch.version
+          );
+
+          if let Err(e) = browser_runner.profile_manager.update_profile_version(
+            &app_handle,
+            &profile_for_launch.id.to_string(),
+            &available_version,
+          ) {
+            log::warn!("Failed to update profile version: {e}");
+          }
+
+          return format!(
+            "Browser version mismatch fixed. Profile updated to use downloaded version {}. Please try again.",
+            available_version
+          );
+        }
+
+        log::warn!(
+          "Executable lookup failed for {} version {} although registry reports downloaded. Cleaning stale install and triggering re-download",
+          profile_for_launch.browser,
+          profile_for_launch.version
+        );
+
+        if let Err(clean_err) = browser_runner
+          .downloaded_browsers_registry
+          .cleanup_failed_download(&profile_for_launch.browser, &profile_for_launch.version)
+        {
+          log::warn!(
+            "Failed to cleanup stale install for {} {}: {}",
+            profile_for_launch.browser,
+            profile_for_launch.version,
+            clean_err
+          );
+        }
+        if let Err(save_err) = browser_runner.downloaded_browsers_registry.save() {
+          log::warn!("Failed to save registry after stale cleanup: {}", save_err);
+        }
+
+        let app_handle_clone = app_handle.clone();
+        let browser_str = profile_for_launch.browser.clone();
+        let version_str = profile_for_launch.version.clone();
+
+        if crate::downloader::Downloader::instance().is_downloading(&browser_str, &version_str) {
+          log::warn!(
+            "Detected stale downloading state for {} {}. Clearing tracking and retrying.",
+            profile_for_launch.browser,
+            profile_for_launch.version
+          );
+          crate::downloader::Downloader::instance()
+            .clear_download_tracking(&browser_str, &version_str);
+        }
+
+        tokio::spawn(async move {
+          log::info!(
+            "Auto re-download task started for {} {}",
+            browser_str,
+            version_str
+          );
+          let downloader = crate::downloader::Downloader::instance();
+          let browser_for_event = browser_str.clone();
+          let version_for_event = version_str.clone();
+
+          if let Err(download_err) = downloader
+            .download_browser_full(&app_handle_clone, browser_str, version_str)
+            .await
+          {
+            log::error!("Auto re-download task failed before completion: {}", download_err);
+            log::error!("Automatic re-download failed: {}", download_err);
+
+            let failed_progress = crate::downloader::DownloadProgress {
+              browser: browser_for_event,
+              version: version_for_event,
+              downloaded_bytes: 0,
+              total_bytes: None,
+              percentage: 0.0,
+              speed_bytes_per_sec: 0.0,
+              eta_seconds: None,
+              stage: "cancelled".to_string(),
+            };
+            let _ = crate::events::emit("download-progress", &failed_progress);
+          }
+        });
+
+        return format!(
+          "Trình duyệt {} phiên bản {} bị lỗi hoặc thiếu file thực thi. Đang tự động tải lại, vui lòng đợi tải xong rồi thử lại.",
+          profile_for_launch.browser,
+          profile_for_launch.version
+        );
+      }
+
       let app_handle_clone = app_handle.clone();
       let browser_str = profile_for_launch.browser.clone();
       let version_str = profile_for_launch.version.clone();
 
+      if crate::downloader::Downloader::instance().is_downloading(&browser_str, &version_str) {
+        log::warn!(
+          "Detected stale downloading state for {} {}. Clearing tracking and retrying.",
+          profile_for_launch.browser,
+          profile_for_launch.version
+        );
+        crate::downloader::Downloader::instance()
+          .clear_download_tracking(&browser_str, &version_str);
+      }
+
       // Trigger download in background
       tokio::spawn(async move {
         let downloader = crate::downloader::Downloader::instance();
+        let browser_for_event = browser_str.clone();
+        let version_for_event = version_str.clone();
+
         if let Err(download_err) = downloader
           .download_browser_full(&app_handle_clone, browser_str, version_str)
           .await
         {
           log::error!("Automated background download failed: {}", download_err);
+
+          let failed_progress = crate::downloader::DownloadProgress {
+            browser: browser_for_event,
+            version: version_for_event,
+            downloaded_bytes: 0,
+            total_bytes: None,
+            percentage: 0.0,
+            speed_bytes_per_sec: 0.0,
+            eta_seconds: None,
+            stage: "cancelled".to_string(),
+          };
+          let _ = crate::events::emit("download-progress", &failed_progress);
         }
       });
 

@@ -72,7 +72,10 @@ impl AutoUpdater {
       }
 
       // Temporarily only check updates for camoufox and orbita
-      if profile.browser != "camoufox" && profile.browser != "orbita" {
+      if profile.browser != "camoufox"
+        && profile.browser != "orbita"
+        && profile.browser != "cloakbrowser"
+      {
         continue;
       }
 
@@ -522,6 +525,7 @@ mod tests {
       camoufox_config: None,
       wayfern_config: None,
       orbita_config: None,
+      cloakbrowser_config: None,
       group_id: None,
       tags: Vec::new(),
       note: None,

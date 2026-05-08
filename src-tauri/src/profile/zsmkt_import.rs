@@ -163,6 +163,7 @@ pub fn convert_zsmkt_profile(
     camoufox_config: Some(camoufox_config),
     wayfern_config: None,
     orbita_config: None,
+    cloakbrowser_config: None,
     group_id: None,
     tags: Vec::new(),
     note: Some(format!(
