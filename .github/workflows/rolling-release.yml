@@ -144,27 +144,26 @@ jobs:
             chmod +x src-tauri/binaries/foxia-daemon-${{ matrix.target }}
           fi
 
-      - name: Generate nightly timestamp
-        id: timestamp
+      - name: Read app version
+        id: app_version
         shell: bash
         run: |
-          TIMESTAMP=$(date -u +"%Y-%m-%d")
-          COMMIT_HASH=$(echo "${GITHUB_SHA}" | cut -c1-7)
-          echo "timestamp=${TIMESTAMP}-${COMMIT_HASH}" >> $GITHUB_OUTPUT
-          echo "Generated timestamp: ${TIMESTAMP}-${COMMIT_HASH}"
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "App version: ${VERSION}"
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa #v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BUILD_TAG: "nightly-${{ steps.timestamp.outputs.timestamp }}"
-          GITHUB_REF_NAME: "nightly-${{ steps.timestamp.outputs.timestamp }}"
+          BUILD_TAG: "v${{ steps.app_version.outputs.version }}"
+          GITHUB_REF_NAME: "v${{ steps.app_version.outputs.version }}"
           GITHUB_SHA: ${{ github.sha }}
         with:
           projectPath: ./src-tauri
-          tagName: "nightly-${{ steps.timestamp.outputs.timestamp }}"
-          releaseName: "Foxia-MKT Nightly (Build ${{ steps.timestamp.outputs.timestamp }})"
-          releaseBody: "⚠️ **Nightly Release** - This is an automatically generated pre-release build from the latest main branch. Use with caution.\n\nCommit: ${{ github.sha }}\nBuild: ${{ steps.timestamp.outputs.timestamp }}"
+          tagName: "v${{ steps.app_version.outputs.version }}"
+          releaseName: "Foxia-MKT v${{ steps.app_version.outputs.version }}"
+          releaseBody: "⚠️ **Nightly Release** - This is an automatically generated pre-release build from the latest main branch. Use with caution.\n\nVersion: ${{ steps.app_version.outputs.version }}\nCommit: ${{ github.sha }}"
           releaseDraft: false
           prerelease: true
           args: ${{ matrix.args }}
