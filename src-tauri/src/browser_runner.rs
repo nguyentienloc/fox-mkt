@@ -12,7 +12,9 @@ use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use sysinfo::{ProcessStatus, System};
+#[cfg(target_os = "macos")]
+use sysinfo::ProcessStatus;
+use sysinfo::System;
 pub struct BrowserRunner {
   base_dirs: BaseDirs,
   pub profile_manager: &'static ProfileManager,
