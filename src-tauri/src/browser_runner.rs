@@ -651,6 +651,7 @@ copied_files={}
     config
   }
 
+  #[cfg(target_os = "macos")]
   fn build_browser_launch_log_path(&self, profile: &BrowserProfile) -> PathBuf {
     let timestamp = SystemTime::now()
       .duration_since(UNIX_EPOCH)
@@ -659,6 +660,7 @@ copied_files={}
     std::env::temp_dir().join(format!("foxia-browser-{}-{timestamp}.log", profile.id))
   }
 
+  #[cfg(target_os = "macos")]
   fn latest_chromium_crash_report_path(&self) -> Option<PathBuf> {
     let reports_dir = self
       .base_dirs
@@ -683,6 +685,7 @@ copied_files={}
     entries.last().map(|entry| entry.path())
   }
 
+  #[cfg(target_os = "macos")]
   fn is_process_running_healthy(system: &System, pid: u32) -> bool {
     system
       .process(sysinfo::Pid::from(pid as usize))
@@ -1281,7 +1284,8 @@ copied_files={}
       browser_args
     };
 
-    let browser_log_path = if cfg!(target_os = "macos") && profile.browser == "cloakbrowser" {
+    #[cfg(target_os = "macos")]
+    let browser_log_path = if profile.browser == "cloakbrowser" {
       let path = self.build_browser_launch_log_path(profile);
       log::info!("CloakBrowser launch log path: {}", path.display());
       Some(path)
