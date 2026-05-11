@@ -275,24 +275,31 @@ fn normalize_locale(locale: &str) -> Locale {
     .map(|s| s.to_lowercase())
     .unwrap_or_else(|| "en".to_string());
 
-  let region = parts.get(1).map(|s| s.to_uppercase());
+  let explicit_script = parts.get(1).filter(|part| part.len() == 4).map(|part| {
+    let mut chars = part.chars();
+    match chars.next() {
+      Some(first) => format!("{}{}", first.to_uppercase(), chars.as_str().to_lowercase()),
+      None => String::new(),
+    }
+  });
 
-  // Determine script based on language if needed
-  let script = match language.as_str() {
+  let region = if explicit_script.is_some() {
+    parts.get(2).map(|s| s.to_uppercase())
+  } else {
+    parts.get(1).map(|s| s.to_uppercase())
+  };
+
+  let script = explicit_script.or_else(|| match language.as_str() {
     "zh" => {
-      // Chinese - Traditional for TW/HK, Simplified otherwise
       if region.as_deref() == Some("TW") || region.as_deref() == Some("HK") {
         Some("Hant".to_string())
       } else {
         Some("Hans".to_string())
       }
     }
-    "sr" => {
-      // Serbian - can be Cyrillic or Latin
-      Some("Cyrl".to_string())
-    }
+    "sr" => Some("Cyrl".to_string()),
     _ => None,
-  };
+  });
 
   Locale {
     language,
@@ -442,5 +449,10 @@ mod tests {
 
     let zh_cn = normalize_locale("zh-CN");
     assert_eq!(zh_cn.script, Some("Hans".to_string()));
+
+    let zh_hant_us = normalize_locale("zh-Hant-US");
+    assert_eq!(zh_hant_us.language, "zh");
+    assert_eq!(zh_hant_us.region, Some("US".to_string()));
+    assert_eq!(zh_hant_us.script, Some("Hant".to_string()));
   }
 }
