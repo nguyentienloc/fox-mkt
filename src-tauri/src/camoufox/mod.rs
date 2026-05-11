@@ -1,7 +1,7 @@
 //! Camoufox browser integration module.
 //!
 //! Provides native Rust support for launching Camoufox browsers with realistic
-//! fingerprint injection using playwright-rust.
+//! fingerprint injection using a native process launcher.
 //!
 //! # Overview
 //!
@@ -11,7 +11,7 @@
 //! - **Fingerprint Generation**: Bayesian network-based fingerprint generation
 //! - **WebGL Sampling**: Realistic WebGL configurations from a SQLite database
 //! - **Configuration Builder**: Converts fingerprints to Camoufox config format
-//! - **Launcher**: playwright-rust integration for browser launching
+//! - **Launcher**: process-based Camoufox browser launching
 //!
 //! # Example
 //!

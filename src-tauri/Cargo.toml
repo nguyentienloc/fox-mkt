@@ -85,9 +85,6 @@ http-body-util = "0.1"
 clap = { version = "4", features = ["derive"] }
 async-socks5 = "0.6"
 
-# Camoufox/Playwright integration
-playwright = { git = "https://github.com/sctg-development/playwright-rust", branch = "master" }
-
 # Wayfern CDP integration
 tokio-tungstenite = { version = "0.28", features = ["native-tls"] }
 rusqlite = { version = "0.38", features = ["bundled"] }

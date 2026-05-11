@@ -1,32 +1,49 @@
-//! Camoufox browser launcher using playwright-rust.
+//! Camoufox browser process launcher.
 //!
 //! Provides functionality to launch Camoufox browser instances with fingerprint injection.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::process::Stdio;
 
-use playwright::api::{Browser, BrowserContext, Playwright, ProxySettings};
-use playwright::Error as PlaywrightError;
+use tokio::process::{Child, Command};
 
 use crate::camoufox::config::{CamoufoxConfigBuilder, CamoufoxLaunchConfig, ProxyConfig};
 use crate::camoufox::fingerprint::types::{Fingerprint, ScreenConstraints};
 
 /// Camoufox launcher for creating browser instances.
 pub struct CamoufoxLauncher {
-  playwright: Arc<Playwright>,
   executable_path: PathBuf,
+}
+
+/// Running Camoufox process.
+#[derive(Debug)]
+pub struct CamoufoxProcess {
+  child: Child,
+}
+
+impl CamoufoxProcess {
+  /// Return the operating system process id.
+  pub fn id(&self) -> Option<u32> {
+    self.child.id()
+  }
+
+  /// Stop the browser process.
+  pub async fn close(mut self) -> std::io::Result<()> {
+    match self.child.start_kill() {
+      Ok(()) => {
+        let _ = self.child.wait().await;
+        Ok(())
+      }
+      Err(error) if error.kind() == std::io::ErrorKind::InvalidInput => Ok(()),
+      Err(error) => Err(error),
+    }
+  }
 }
 
 /// Error type for launcher operations.
 #[derive(Debug, thiserror::Error)]
 pub enum LauncherError {
-  #[error("Playwright error: {0}")]
-  Playwright(PlaywrightError),
-
-  #[error("Playwright Arc error: {0}")]
-  PlaywrightArc(#[from] Arc<PlaywrightError>),
-
   #[error("Configuration error: {0}")]
   Config(#[from] crate::camoufox::config::ConfigError),
 
@@ -86,133 +103,54 @@ impl CamoufoxLauncher {
       return Err(LauncherError::ExecutableNotFound(executable_path));
     }
 
-    let playwright = Playwright::initialize()
-      .await
-      .map_err(LauncherError::Playwright)?;
-
-    Ok(Self {
-      playwright: Arc::new(playwright),
-      executable_path,
-    })
+    Ok(Self { executable_path })
   }
 
-  /// Launch a new Camoufox browser instance.
-  pub async fn launch(&self, options: LaunchOptions) -> Result<Browser, LauncherError> {
-    let config = self.build_config(&options)?;
-
-    if options.debug {
-      log::debug!("Camoufox config: {:?}", config.fingerprint_config);
-    }
-
-    // Get environment variables
-    let env_vars = config.get_env_vars()?;
-
-    // Build launch arguments
-    let mut args = options.args.clone().unwrap_or_default();
-
-    // Add headless flag if needed
-    if options.headless {
-      args.push("--headless".to_string());
-    }
-
-    // Merge environment variables
-    let mut env = options.env.clone().unwrap_or_default();
-    for (key, value) in env_vars {
-      env.insert(key, value);
-    }
-
-    // Handle fontconfig on Linux
-    if cfg!(target_os = "linux") {
-      if let Some(fontconfig_path) =
-        crate::camoufox::env_vars::get_fontconfig_env(&config.target_os, &self.executable_path)
-      {
-        env.insert("FONTCONFIG_PATH".to_string(), fontconfig_path);
-      }
-    }
-
-    // Build Firefox user prefs
-    let mut firefox_prefs = config.firefox_prefs.clone();
-    if let Some(user_prefs) = options.firefox_user_prefs {
-      for (key, value) in user_prefs {
-        firefox_prefs.insert(key, value);
-      }
-    }
-
-    // Get the Firefox browser type
-    let firefox = self.playwright.firefox();
-
-    // Build launch options
-    let mut launch_options = firefox.launcher();
-    launch_options = launch_options.executable(&self.executable_path);
-    launch_options = launch_options.headless(options.headless);
-
-    // Add args
-    if !args.is_empty() {
-      launch_options = launch_options.args(&args);
-    }
-
-    // Add environment as serde_json::Map
-    if !env.is_empty() {
-      let env_map: serde_json::Map<String, serde_json::Value> = env
-        .into_iter()
-        .map(|(k, v)| (k, serde_json::Value::String(v)))
-        .collect();
-      launch_options = launch_options.env(env_map);
-    }
-
-    // Add proxy if configured
-    if let Some(proxy) = &config.proxy {
-      let proxy_settings = ProxySettings {
-        server: proxy.server.clone(),
-        username: proxy.username.clone(),
-        password: proxy.password.clone(),
-        bypass: proxy.bypass.clone(),
-      };
-      launch_options = launch_options.proxy(proxy_settings);
-    }
-
-    // Add Firefox preferences
-    if !firefox_prefs.is_empty() {
-      let prefs_map: serde_json::Map<String, serde_json::Value> =
-        firefox_prefs.into_iter().collect();
-      launch_options = launch_options.firefox_user_prefs(prefs_map);
-    }
-
-    // Launch the browser
-    let browser = launch_options.launch().await?;
-
-    Ok(browser)
+  /// Launch a new Camoufox browser process.
+  pub async fn launch(&self, options: LaunchOptions) -> Result<CamoufoxProcess, LauncherError> {
+    let user_data_dir = options.user_data_dir.clone();
+    self.launch_process(user_data_dir.as_deref(), options).await
   }
 
-  /// Launch a persistent browser context.
+  /// Launch a persistent browser process.
   pub async fn launch_persistent_context(
     &self,
     user_data_dir: impl AsRef<Path>,
     options: LaunchOptions,
-  ) -> Result<BrowserContext, LauncherError> {
+  ) -> Result<CamoufoxProcess, LauncherError> {
+    self
+      .launch_process(Some(user_data_dir.as_ref()), options)
+      .await
+  }
+
+  async fn launch_process(
+    &self,
+    user_data_dir: Option<&Path>,
+    options: LaunchOptions,
+  ) -> Result<CamoufoxProcess, LauncherError> {
     let config = self.build_config(&options)?;
 
     if options.debug {
       log::debug!("Camoufox config: {:?}", config.fingerprint_config);
     }
 
-    // Get environment variables
     let env_vars = config.get_env_vars()?;
-
-    // Build launch arguments
     let mut args = options.args.clone().unwrap_or_default();
+
+    if let Some(user_data_dir) = user_data_dir {
+      args.push("-profile".to_string());
+      args.push(user_data_dir.to_string_lossy().to_string());
+    }
 
     if options.headless {
       args.push("--headless".to_string());
     }
 
-    // Merge environment variables
     let mut env = options.env.clone().unwrap_or_default();
     for (key, value) in env_vars {
       env.insert(key, value);
     }
 
-    // Handle fontconfig on Linux
     if cfg!(target_os = "linux") {
       if let Some(fontconfig_path) =
         crate::camoufox::env_vars::get_fontconfig_env(&config.target_os, &self.executable_path)
@@ -221,54 +159,27 @@ impl CamoufoxLauncher {
       }
     }
 
-    // Build Firefox user prefs
-    let mut firefox_prefs = config.firefox_prefs.clone();
-    if let Some(user_prefs) = options.firefox_user_prefs {
-      for (key, value) in user_prefs {
-        firefox_prefs.insert(key, value);
+    if let Some(proxy) = &config.proxy {
+      let proxy_arg = self.proxy_arg(proxy);
+      if !proxy_arg.is_empty() {
+        args.push(proxy_arg);
       }
     }
 
-    // Get the Firefox browser type
-    let firefox = self.playwright.firefox();
+    let mut command = Command::new(&self.executable_path);
+    command
+      .args(&args)
+      .stdin(Stdio::null())
+      .stdout(Stdio::null())
+      .stderr(Stdio::null());
 
-    // Build persistent context options
-    let mut context_options = firefox.persistent_context_launcher(user_data_dir.as_ref());
-    context_options = context_options.executable(&self.executable_path);
-    context_options = context_options.headless(options.headless);
-
-    // Add args
-    if !args.is_empty() {
-      context_options = context_options.args(&args);
+    for (key, value) in env {
+      command.env(key, value);
     }
 
-    // Add environment as serde_json::Map
-    if !env.is_empty() {
-      let env_map: serde_json::Map<String, serde_json::Value> = env
-        .into_iter()
-        .map(|(k, v)| (k, serde_json::Value::String(v)))
-        .collect();
-      context_options = context_options.env(env_map);
-    }
-
-    // Add proxy if configured
-    if let Some(proxy) = &config.proxy {
-      let proxy_settings = ProxySettings {
-        server: proxy.server.clone(),
-        username: proxy.username.clone(),
-        password: proxy.password.clone(),
-        bypass: proxy.bypass.clone(),
-      };
-      context_options = context_options.proxy(proxy_settings);
-    }
-
-    // Note: PersistentContextLauncher doesn't support firefox_user_prefs
-    // Firefox preferences should be set via about:config or prefs.js in the profile
-
-    // Launch the persistent context
-    let context = context_options.launch().await?;
-
-    Ok(context)
+    Ok(CamoufoxProcess {
+      child: command.spawn()?,
+    })
   }
 
   /// Build Camoufox configuration from launch options.
@@ -302,12 +213,25 @@ impl CamoufoxLauncher {
       builder = builder.proxy(proxy.clone());
     }
 
-    // Get Firefox version from executable
     if let Some(version) = crate::camoufox::config::get_firefox_version(&self.executable_path) {
       builder = builder.ff_version(version);
     }
 
     Ok(builder.build()?)
+  }
+
+  fn proxy_arg(&self, proxy: &ProxyConfig) -> String {
+    let mut proxy_url = proxy.server.clone();
+
+    if let (Some(username), Some(password)) = (&proxy.username, &proxy.password) {
+      if let Ok(mut parsed) = url::Url::parse(&proxy.server) {
+        let _ = parsed.set_username(username);
+        let _ = parsed.set_password(Some(password));
+        proxy_url = parsed.to_string();
+      }
+    }
+
+    format!("--proxy-server={proxy_url}")
   }
 
   /// Get the executable path.
@@ -320,17 +244,17 @@ impl CamoufoxLauncher {
 pub async fn launch_camoufox(
   executable_path: impl AsRef<Path>,
   options: LaunchOptions,
-) -> Result<Browser, LauncherError> {
+) -> Result<CamoufoxProcess, LauncherError> {
   let launcher = CamoufoxLauncher::new(executable_path).await?;
   launcher.launch(options).await
 }
 
-/// Convenience function to launch a persistent Camoufox context.
+/// Convenience function to launch a persistent Camoufox process.
 pub async fn launch_persistent_camoufox(
   executable_path: impl AsRef<Path>,
   user_data_dir: impl AsRef<Path>,
   options: LaunchOptions,
-) -> Result<BrowserContext, LauncherError> {
+) -> Result<CamoufoxProcess, LauncherError> {
   let launcher = CamoufoxLauncher::new(executable_path).await?;
   launcher
     .launch_persistent_context(user_data_dir, options)
