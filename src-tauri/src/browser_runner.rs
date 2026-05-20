@@ -666,7 +666,7 @@ copied_files={}
     };
     let ver_start = start + prefix.len();
     let ver_end = ua[ver_start..]
-      .find(|c: char| c == ')' || c == ' ')
+      .find([')', ' '])
       .map(|i| ver_start + i)
       .unwrap_or(ua.len());
     let ver_str = &ua[ver_start..ver_end];
