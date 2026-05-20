@@ -63,7 +63,18 @@ export function generateCloakUserAgent(
 
   switch (platform) {
     case "macos": {
-      const macVer = `${10 + (Number(major) % 5)}_${Number(major) % 10}_0`;
+      const chromeMajor = Number(major);
+      let macVersions: string[];
+      if (chromeMajor >= 130) {
+        macVersions = ["13_0_0", "14_0_0", "15_0_0"];
+      } else if (chromeMajor >= 120) {
+        macVersions = ["12_0_0", "13_0_0", "14_0_0"];
+      } else if (chromeMajor >= 110) {
+        macVersions = ["11_0_0", "12_0_0", "13_0_0"];
+      } else {
+        macVersions = ["10_15_7", "11_0_0", "12_0_0"];
+      }
+      const macVer = macVersions[chromeMajor % macVersions.length];
       return `Mozilla/5.0 (Macintosh; Intel Mac OS X ${macVer}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${full} Safari/537.36`;
     }
     case "linux":

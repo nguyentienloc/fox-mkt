@@ -643,6 +643,12 @@ copied_files={}
         .or_else(|| profile.user_agent.clone());
     }
 
+    if let Some(ref ua) = config.user_agent {
+      if ua.contains("Macintosh") {
+        config.user_agent = Some(Self::sanitize_macos_user_agent(ua));
+      }
+    }
+
     if config.platform.is_none() {
       config.platform = config
         .user_agent
@@ -651,6 +657,51 @@ copied_files={}
     }
 
     config
+  }
+
+  fn sanitize_macos_user_agent(ua: &str) -> String {
+    let prefix = "Mac OS X ";
+    let Some(start) = ua.find(prefix) else {
+      return ua.to_string();
+    };
+    let ver_start = start + prefix.len();
+    let ver_end = ua[ver_start..]
+      .find(|c: char| c == ')' || c == ' ')
+      .map(|i| ver_start + i)
+      .unwrap_or(ua.len());
+    let ver_str = &ua[ver_start..ver_end];
+
+    let parts: Vec<&str> = ver_str.split('_').collect();
+    if parts.len() < 2 {
+      return ua.to_string();
+    }
+    let Ok(major) = parts[0].parse::<u32>() else {
+      return ua.to_string();
+    };
+    let Ok(minor) = parts[1].parse::<u32>() else {
+      return ua.to_string();
+    };
+
+    if major > 10 || (major == 10 && minor >= 15) {
+      return ua.to_string();
+    }
+
+    let chrome_major = ua
+      .find("Chrome/")
+      .and_then(|i| ua[i + 7..].split('.').next())
+      .and_then(|v| v.parse::<u32>().ok())
+      .unwrap_or(125);
+
+    let replacements: &[&str] = if chrome_major >= 130 {
+      &["13_0_0", "14_0_0", "15_0_0"]
+    } else if chrome_major >= 120 {
+      &["12_0_0", "13_0_0", "14_0_0"]
+    } else {
+      &["10_15_7", "11_0_0", "12_0_0"]
+    };
+    let new_ver = replacements[(chrome_major as usize) % replacements.len()];
+
+    ua.replacen(ver_str, new_ver, 1)
   }
 
   #[cfg(target_os = "macos")]
