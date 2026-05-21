@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash(rtk wc *)",
+      "Bash(python3)",
+      "Bash(rtk find *)",
+      "Bash(xattr -l \"/Users/locnguyen/Library/Application Support/FoxiaDev/binaries/cloakbrowser/145.0.7632.109.2/Chromium.app\")",
+      "Bash(codesign -dv \"/Users/locnguyen/Library/Application Support/FoxiaDev/binaries/cloakbrowser/145.0.7632.109.2/Chromium.app\")"
+    ]
+  }
+}
