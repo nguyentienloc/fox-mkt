@@ -23,6 +23,12 @@ impl CloakBrowserConfig {
   pub fn to_launch_args(&self) -> Vec<String> {
     let mut args = Vec::new();
 
+    // Force file-based encryption for cookies/Login Data so the os_crypt key
+    // lives in `Local State` (portable across machines) instead of the macOS
+    // Keychain or Linux libsecret. Required for the S3 profile sync round-trip
+    // to preserve Facebook (and other) login sessions on restore.
+    args.push("--password-store=basic".to_string());
+
     let seed = self.seed.unwrap_or_else(Self::generate_seed);
     args.push(format!("--fingerprint={seed}"));
 

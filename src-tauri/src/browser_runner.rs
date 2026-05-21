@@ -364,16 +364,22 @@ impl BrowserRunner {
       return 0;
     }
 
+    // NOTE: never list auth-critical state here. Removing these wipes the user
+    // login session (cookies, os_crypt key, web storage) on every launch and
+    // breaks the S3 sync round-trip:
+    //   - "Local State"           → holds os_crypt.encrypted_key (cookie/login decryption)
+    //   - "Default/Network"       → holds Cookies SQLite DB
+    //   - "Default/Session Storage" → HTML5 sessionStorage used by FB and others
+    //   - "Default/Preferences" / "Default/Secure Preferences" → autofill, login_db hints
+    //
+    // BUT we must still wipe tab-restore state. Stale "Default/Sessions/Tabs_*"
+    // / "Last Tabs" files from a previous unclean shutdown crash Chromium with
+    // a DCHECK during NTP route. Tab restore state is unrelated to cookies.
     let files_to_remove = [
-      "Local State",
-      "Preferences",
-      "Secure Preferences",
       "SingletonLock",
       "SingletonSocket",
       "SingletonCookie",
       "lockfile",
-      "Default/Preferences",
-      "Default/Secure Preferences",
       "Default/Current Session",
       "Default/Current Tabs",
       "Default/Last Session",
@@ -384,13 +390,12 @@ impl BrowserRunner {
     ];
     let dirs_to_remove = [
       "Default/Sessions",
-      "Default/Session Storage",
+      "Default/Sync Data",
       "Default/Cache",
       "Default/Code Cache",
       "Default/GPUCache",
       "Default/DawnGraphiteCache",
       "Default/DawnWebGPUCache",
-      "Default/Network",
       "Default/Service Worker/ScriptCache",
     ];
 
