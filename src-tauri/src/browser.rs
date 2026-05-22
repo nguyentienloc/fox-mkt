@@ -1091,6 +1091,8 @@ impl Browser for ChromiumBrowser {
       "--disable-session-crashed-bubble".to_string(),
       "--hide-crash-restore-bubble".to_string(),
       "--disable-infobars".to_string(),
+      "--use-mock-keychain".to_string(),
+      "--password-store=basic".to_string(),
     ];
 
     // Add remote debugging if requested
@@ -1300,6 +1302,7 @@ impl Browser for WayfernBrowser {
       "--disable-features=DialMediaRouteProvider".to_string(),
       "--use-mock-keychain".to_string(),
       "--password-store=basic".to_string(),
+      "--disable-encryption".to_string(),
     ];
 
     // Add remote debugging port (required for CDP fingerprint injection)
@@ -1512,7 +1515,9 @@ impl Browser for CloakBrowser {
       "--hide-crash-restore-bubble".to_string(),
       "--no-restore-session-state".to_string(),
       "--disable-infobars".to_string(),
+      "--use-mock-keychain".to_string(),
       "--password-store=basic".to_string(),
+      "--disable-encryption".to_string(),
     ];
 
     if let Some(port) = remote_debugging_port {

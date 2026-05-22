@@ -27,7 +27,9 @@ impl CloakBrowserConfig {
     // lives in `Local State` (portable across machines) instead of the macOS
     // Keychain or Linux libsecret. Required for the S3 profile sync round-trip
     // to preserve Facebook (and other) login sessions on restore.
+    args.push("--use-mock-keychain".to_string());
     args.push("--password-store=basic".to_string());
+    args.push("--disable-encryption".to_string());
 
     let seed = self.seed.unwrap_or_else(Self::generate_seed);
     args.push(format!("--fingerprint={seed}"));
