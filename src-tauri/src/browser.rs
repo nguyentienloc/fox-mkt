@@ -1474,6 +1474,27 @@ impl Browser for OrbitaBrowser {
 
 pub struct CloakBrowser;
 
+/// Base URL for the Foxia Browser (CloakBrowser) binaries hosted on our own S3.
+/// The bucket is flat (no per-version path); each platform archive sits directly
+/// under this prefix as `cloakbrowser-{platform}.{ext}`.
+pub const CLOAKBROWSER_BASE_URL: &str = "https://hcm03.vstorage.vngcloud.vn/v1/AUTH_26d35a1626794345820c957a59fb6b2a/crmzs-prod/mkt/browser";
+
+/// Fixed version label used for the S3-hosted Foxia Browser. The bucket only
+/// keeps a single current build per platform, so the version is a static tag
+/// for registry bookkeeping rather than a real upstream version.
+pub const CLOAKBROWSER_VERSION: &str = "1.0.0";
+
+/// Resolve the platform-specific archive filename for the Foxia Browser.
+/// Returns `None` for unsupported platform/arch combinations.
+pub fn cloakbrowser_archive_name(os: &str, arch: &str) -> Option<&'static str> {
+  match (os, arch) {
+    ("macos", "arm64") => Some("cloakbrowser-darwin-arm64.tar.gz"),
+    ("macos", "x64") => Some("cloakbrowser-darwin-x64.tar.gz"),
+    ("windows", "x64") => Some("cloakbrowser-windows-x64.zip"),
+    _ => None,
+  }
+}
+
 impl CloakBrowser {
   pub fn new() -> Self {
     Self

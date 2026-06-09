@@ -70,7 +70,8 @@ use browser_version_manager::{
 };
 
 use downloaded_browsers_registry::{
-  check_missing_binaries, ensure_all_binaries_exist, get_downloaded_browser_versions,
+  check_missing_binaries, delete_browser, ensure_all_binaries_exist,
+  get_downloaded_browser_versions,
 };
 
 use downloader::{cancel_download, download_browser};
@@ -116,7 +117,7 @@ use group_manager::{
   get_groups_with_profile_counts, get_profile_groups, update_profile_group,
 };
 
-use geoip_downloader::{check_missing_geoip_database, GeoIPDownloader};
+use geoip_downloader::{check_missing_geoip_database, delete_geoip_database, GeoIPDownloader};
 
 use browser_version_manager::get_browser_release_types;
 
@@ -1260,6 +1261,8 @@ pub fn run() {
       is_geoip_database_available,
       check_camoufox_js_available,
       download_geoip_database,
+      delete_geoip_database,
+      delete_browser,
       start_api_server,
       stop_api_server,
       get_api_server_status,

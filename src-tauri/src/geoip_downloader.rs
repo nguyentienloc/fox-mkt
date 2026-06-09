@@ -246,6 +246,18 @@ pub fn check_missing_geoip_database() -> Result<bool, String> {
     .map_err(|e| format!("Failed to check missing GeoIP database: {e}"))
 }
 
+#[tauri::command]
+pub fn delete_geoip_database() -> Result<(), String> {
+  let mmdb_path = GeoIPDownloader::get_mmdb_file_path()
+    .map_err(|e| format!("Failed to resolve GeoIP database path: {e}"))?;
+  if mmdb_path.exists() {
+    std::fs::remove_file(&mmdb_path)
+      .map_err(|e| format!("Failed to delete GeoIP database: {e}"))?;
+    log::info!("Deleted GeoIP database: {}", mmdb_path.display());
+  }
+  Ok(())
+}
+
 // Global singleton instance
 lazy_static::lazy_static! {
   static ref GEOIP_DOWNLOADER: GeoIPDownloader = GeoIPDownloader::new();

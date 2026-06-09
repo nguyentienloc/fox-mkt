@@ -4,6 +4,7 @@ import {
   LuCloud,
   LuDownload,
   LuLogOut,
+  LuMonitorDown,
   LuRefreshCw,
   LuSearch,
   LuUser,
@@ -31,6 +32,7 @@ type Props = {
   onOdooImportDialogOpen: (open: boolean) => void;
   _onSyncConfigDialogOpen: (open: boolean) => void;
   _onIntegrationsDialogOpen: (open: boolean) => void;
+  onBrowserManagementDialogOpen: (open: boolean) => void;
   onCheckAppUpdate: () => void;
   appUpdateInfo: any;
   searchQuery: string;
@@ -46,6 +48,7 @@ const HomeHeader = ({
   onOdooImportDialogOpen,
   _onSyncConfigDialogOpen,
   _onIntegrationsDialogOpen,
+  onBrowserManagementDialogOpen,
   onCheckAppUpdate,
   appUpdateInfo,
   searchQuery,
@@ -193,6 +196,14 @@ const HomeHeader = ({
             >
               <LuUsers className="mr-2 w-4 h-4" />
               {t("header.menu.groups")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                onBrowserManagementDialogOpen(true);
+              }}
+            >
+              <LuMonitorDown className="mr-2 w-4 h-4" />
+              {t("header.menu.browserManagement")}
             </DropdownMenuItem>
             {/* Tạm ẩn Dịch vụ đồng bộ
             <DropdownMenuItem

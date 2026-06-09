@@ -119,6 +119,26 @@
       "clearCacheDescription": "Clear all cached browser version data and refresh all browser versions from their sources. This will force a fresh download of version information for all browsers."
     }
   },
+  "browserManagement": {
+    "title": "Browser Management",
+    "description": "Download or remove browsers and the GeoIP database.",
+    "component": "Component",
+    "status": "Status",
+    "geoip": "GeoIP Database",
+    "installed": "Installed",
+    "notInstalled": "Not installed",
+    "download": "Download",
+    "delete": "Remove",
+    "reinstall": "Reinstall",
+    "noVersionAvailable": "No version available",
+    "downloadFailed": "Failed to download {{name}}",
+    "deleteSuccess": "{{name}} removed",
+    "deleteFailed": "Failed to remove {{name}}",
+    "geoipDownloadSuccess": "GeoIP database downloaded",
+    "geoipDownloadFailed": "Failed to download GeoIP database",
+    "geoipDeleteSuccess": "GeoIP database removed",
+    "geoipDeleteFailed": "Failed to remove GeoIP database"
+  },
   "header": {
     "searchPlaceholder": "Search profiles...",
     "clearSearch": "Clear search",
@@ -128,6 +148,7 @@
       "settings": "Settings",
       "proxies": "Proxies",
       "groups": "Groups",
+      "browserManagement": "Browser Management",
       "syncService": "Sync Service",
       "integrations": "Integrations",
       "importProfile": "Import Profile",

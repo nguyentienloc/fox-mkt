@@ -119,6 +119,26 @@
       "clearCacheDescription": "Xóa dữ liệu phiên bản trình duyệt đã lưu và tải lại từ nguồn."
     }
   },
+  "browserManagement": {
+    "title": "Quản lý trình duyệt",
+    "description": "Tải hoặc gỡ trình duyệt và cơ sở dữ liệu GeoIP.",
+    "component": "Thành phần",
+    "status": "Trạng thái",
+    "geoip": "Cơ sở dữ liệu GeoIP",
+    "installed": "Đã cài",
+    "notInstalled": "Chưa cài",
+    "download": "Tải về",
+    "delete": "Gỡ",
+    "reinstall": "Tải lại",
+    "noVersionAvailable": "Không có phiên bản khả dụng",
+    "downloadFailed": "Tải {{name}} thất bại",
+    "deleteSuccess": "Đã gỡ {{name}}",
+    "deleteFailed": "Gỡ {{name}} thất bại",
+    "geoipDownloadSuccess": "Đã tải cơ sở dữ liệu GeoIP",
+    "geoipDownloadFailed": "Tải cơ sở dữ liệu GeoIP thất bại",
+    "geoipDeleteSuccess": "Đã gỡ cơ sở dữ liệu GeoIP",
+    "geoipDeleteFailed": "Gỡ cơ sở dữ liệu GeoIP thất bại"
+  },
   "header": {
     "searchPlaceholder": "Tìm kiếm profile...",
     "clearSearch": "Xóa tìm kiếm",
@@ -128,6 +148,7 @@
       "settings": "Cài đặt",
       "proxies": "Proxy",
       "groups": "Nhóm",
+      "browserManagement": "Quản lý trình duyệt",
       "syncService": "Dịch vụ đồng bộ",
       "integrations": "Tích hợp",
       "importProfile": "Nhập Profile",

@@ -8,6 +8,7 @@ import {
   BrowserFilter,
   type BrowserFilterType,
 } from "@/components/browser-filter";
+import { BrowserManagementDialog } from "@/components/browser-management-dialog";
 import { CamoufoxConfigDialog } from "@/components/camoufox-config-dialog";
 import { CreateProfileDialog } from "@/components/create-profile-dialog";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
@@ -165,7 +166,7 @@ export default function Home() {
   const { isLoggedIn, isManager } = useAuth();
   const hasAttemptedAutoDownload = useRef(false);
 
-  // Auto-download Orbita and Camoufox if missing on mount
+  // Auto-download browsers and GeoIP database if missing on mount
   useEffect(() => {
     if (!isLoggedIn || hasAttemptedAutoDownload.current) return;
     hasAttemptedAutoDownload.current = true;
@@ -198,8 +199,29 @@ export default function Home() {
       }
     };
 
+    const checkAndDownloadGeoIP = async () => {
+      try {
+        const isAvailable = await invoke<boolean>(
+          "is_geoip_database_available",
+        );
+        if (!isAvailable) {
+          console.log(
+            "[Auto-download] GeoIP database not found, triggering download...",
+          );
+          await invoke("download_geoip_database");
+        }
+      } catch (error) {
+        console.error(
+          "[Auto-download] Failed to check/download GeoIP database:",
+          error,
+        );
+      }
+    };
+
     void checkAndDownload("orbita");
     void checkAndDownload("camoufox");
+    void checkAndDownload("cloakbrowser");
+    void checkAndDownloadGeoIP();
   }, [
     isLoggedIn,
     loadDownloadedVersions,
@@ -439,6 +461,8 @@ export default function Home() {
   const [camoufoxConfigDialogOpen, setCamoufoxConfigDialogOpen] =
     useState(false);
   const [groupManagementDialogOpen, setGroupManagementDialogOpen] =
+    useState(false);
+  const [browserManagementDialogOpen, setBrowserManagementDialogOpen] =
     useState(false);
   const [groupAssignmentDialogOpen, setGroupAssignmentDialogOpen] =
     useState(false);
@@ -928,6 +952,7 @@ export default function Home() {
       <main className="flex flex-col items-center w-full max-w-[1300px] h-screen px-4 py-4">
         <HomeHeader
           onGroupManagementDialogOpen={setGroupManagementDialogOpen}
+          onBrowserManagementDialogOpen={setBrowserManagementDialogOpen}
           _onImportProfileDialogOpen={setImportProfileDialogOpen}
           _onZsmktImportDialogOpen={setZsmktImportDialogOpen}
           onOdooImportDialogOpen={setOdooImportDialogOpen}
@@ -1118,6 +1143,10 @@ export default function Home() {
       <ProxyManagementDialog
         isOpen={proxyManagementDialogOpen}
         onClose={() => setProxyManagementDialogOpen(false)}
+      />
+      <BrowserManagementDialog
+        isOpen={browserManagementDialogOpen}
+        onClose={() => setBrowserManagementDialogOpen(false)}
       />
       <ProfileDetailsDialog
         isOpen={profileForDetails !== null}

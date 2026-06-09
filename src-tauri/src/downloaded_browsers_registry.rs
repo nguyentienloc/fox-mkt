@@ -97,6 +97,36 @@ impl DownloadedBrowsersRegistry {
     data.browsers.get_mut(browser)?.remove(version)
   }
 
+  /// Completely delete a browser: remove all versions from the registry and
+  /// delete the browser's binaries directory on disk (archives included).
+  pub fn delete_browser_completely(
+    &self,
+    browser: &str,
+  ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    {
+      let mut data = self.data.lock().unwrap();
+      data.browsers.remove(browser);
+    }
+    self.save()?;
+
+    let base_dirs = directories::BaseDirs::new().ok_or("Failed to get base directories")?;
+    let mut browser_dir = base_dirs.data_local_dir().to_path_buf();
+    browser_dir.push(if cfg!(debug_assertions) {
+      "FoxiaDev"
+    } else {
+      "Foxia"
+    });
+    browser_dir.push("binaries");
+    browser_dir.push(browser);
+
+    if browser_dir.exists() {
+      fs::remove_dir_all(&browser_dir)?;
+      log::info!("Deleted browser directory: {}", browser_dir.display());
+    }
+
+    Ok(())
+  }
+
   /// Check if browser is registered in the registry (without disk validation)
   /// This method only checks the in-memory registry and does not validate file existence
   pub fn is_browser_registered(&self, browser: &str, version: &str) -> bool {
@@ -1195,6 +1225,14 @@ mod tests {
 pub fn get_downloaded_browser_versions(browser_str: String) -> Result<Vec<String>, String> {
   let registry = DownloadedBrowsersRegistry::instance();
   Ok(registry.get_downloaded_versions(&browser_str))
+}
+
+#[tauri::command]
+pub fn delete_browser(browser_str: String) -> Result<(), String> {
+  let registry = DownloadedBrowsersRegistry::instance();
+  registry
+    .delete_browser_completely(&browser_str)
+    .map_err(|e| format!("Failed to delete browser {browser_str}: {e}"))
 }
 
 #[tauri::command]

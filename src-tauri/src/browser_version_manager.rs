@@ -757,25 +757,13 @@ impl BrowserVersionManager {
         })
       }
       "cloakbrowser" => {
-        let (archive_suffix, is_archive) = match os.as_str() {
-          "windows" => ("zip", true),
-          _ => ("tar.gz", true),
-        };
-        let platform = match (os.as_str(), arch.as_str()) {
-          ("macos", "arm64") => "darwin-arm64",
-          ("macos", "x64") => "darwin-x64",
-          ("linux", "x64") => "linux-x64",
-          ("linux", "arm64") => "linux-arm64",
-          ("windows", "x64") => "windows-x64",
-          _ => return Err(format!("Unsupported platform for CloakBrowser: {os}/{arch}").into()),
-        };
-        let filename = format!("cloakbrowser-{platform}.{archive_suffix}");
+        let filename = crate::browser::cloakbrowser_archive_name(&os, &arch)
+          .ok_or_else(|| format!("Unsupported platform for CloakBrowser: {os}/{arch}"))?;
+        let is_archive = true;
 
         Ok(DownloadInfo {
-          url: format!(
-            "https://github.com/CloakHQ/cloakbrowser/releases/download/chromium-v{version}/{filename}"
-          ),
-          filename,
+          url: format!("{}/{filename}", crate::browser::CLOAKBROWSER_BASE_URL),
+          filename: filename.to_string(),
           is_archive,
         })
       }
@@ -998,49 +986,14 @@ impl BrowserVersionManager {
     &self,
     _no_caching: bool,
   ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
-    let client = reqwest::Client::new();
-    let resp = client
-      .get("https://api.github.com/repos/CloakHQ/cloakbrowser/releases?per_page=20")
-      .header("User-Agent", "fox-mkt")
-      .send()
-      .await?;
-
-    let releases: Vec<serde_json::Value> = resp.json().await?;
     let (os, arch) = Self::get_platform_info();
-    let platform_suffix = match (os.as_str(), arch.as_str()) {
-      ("macos", "arm64") => "darwin-arm64",
-      ("macos", "x64") => "darwin-x64",
-      ("linux", "x64") => "linux-x64",
-      ("linux", "arm64") => "linux-arm64",
-      ("windows", "x64") => "windows-x64",
-      _ => return Ok(vec![]),
-    };
-
-    let mut versions = Vec::new();
-    for release in &releases {
-      if let Some(tag) = release.get("tag_name").and_then(|t| t.as_str()) {
-        let has_platform_asset = release
-          .get("assets")
-          .and_then(|a| a.as_array())
-          .map(|assets| {
-            assets.iter().any(|a| {
-              a.get("name")
-                .and_then(|n| n.as_str())
-                .map(|n| n.contains(platform_suffix))
-                .unwrap_or(false)
-            })
-          })
-          .unwrap_or(false);
-
-        if has_platform_asset {
-          if let Some(version) = tag.strip_prefix("chromium-v") {
-            versions.push(version.to_string());
-          }
-        }
-      }
+    // Foxia Browser is hosted on our own S3 with a single current build per
+    // platform, so we expose one fixed version when the platform is supported.
+    if crate::browser::cloakbrowser_archive_name(&os, &arch).is_some() {
+      Ok(vec![crate::browser::CLOAKBROWSER_VERSION.to_string()])
+    } else {
+      Ok(vec![])
     }
-
-    Ok(versions)
   }
 }
 

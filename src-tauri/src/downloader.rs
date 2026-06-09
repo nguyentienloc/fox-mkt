@@ -249,19 +249,10 @@ impl Downloader {
       }
       BrowserType::CloakBrowser => {
         let (os, arch) = Self::get_platform_info();
-        let archive_name = match (os.as_str(), arch.as_str()) {
-          ("macos", "arm64") => "cloakbrowser-darwin-arm64.tar.gz",
-          ("macos", "x64") => "cloakbrowser-darwin-x64.tar.gz",
-          ("linux", "x64") => "cloakbrowser-linux-x64.tar.gz",
-          ("linux", "arm64") => "cloakbrowser-linux-arm64.tar.gz",
-          ("windows", "x64") => "cloakbrowser-windows-x64.zip",
-          _ => return Err(format!("Unsupported platform for CloakBrowser: {os}/{arch}").into()),
-        };
-        let url = format!(
-          "https://github.com/CloakHQ/cloakbrowser/releases/download/chromium-v{}/{}",
-          version, archive_name
-        );
-        Ok(url)
+        let archive_name = crate::browser::cloakbrowser_archive_name(&os, &arch)
+          .ok_or_else(|| format!("Unsupported platform for CloakBrowser: {os}/{arch}"))?;
+        let base = crate::browser::CLOAKBROWSER_BASE_URL;
+        Ok(format!("{base}/{archive_name}"))
       }
       _ => {
         // For other browsers, use the provided URL
