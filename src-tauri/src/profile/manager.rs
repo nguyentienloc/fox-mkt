@@ -706,16 +706,16 @@ impl ProfileManager {
     let p = internal.unwrap_or(proxy);
 
     let prefs = vec![
-      format!("user_pref(\"network.proxy.type\", 1);"),
-      format!("user_pref(\"network.proxy.share_proxy_settings\", true);"),
+      "user_pref(\"network.proxy.type\", 1);".to_string(),
+      "user_pref(\"network.proxy.share_proxy_settings\", true);".to_string(),
       format!("user_pref(\"network.proxy.http\", \"{}\");", p.host),
       format!("user_pref(\"network.proxy.http_port\", {});", p.port),
       format!("user_pref(\"network.proxy.ssl\", \"{}\");", p.host),
       format!("user_pref(\"network.proxy.ssl_port\", {});", p.port),
       format!("user_pref(\"network.proxy.socks\", \"{}\");", p.host),
       format!("user_pref(\"network.proxy.socks_port\", {});", p.port),
-      format!("user_pref(\"network.proxy.socks_remote_dns\", true);"),
-      format!("user_pref(\"network.proxy.no_proxies_on\", \"localhost, 127.0.0.1\");"),
+      "user_pref(\"network.proxy.socks_remote_dns\", true);".to_string(),
+      "user_pref(\"network.proxy.no_proxies_on\", \"localhost, 127.0.0.1\");".to_string(),
     ];
 
     fs::write(user_js, prefs.join("\n"))?;

@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 
 /// Trait for VPN tunnel implementations
+#[allow(clippy::double_must_use)] // triggered by async_trait expansion
 #[async_trait]
 pub trait VpnTunnel: Send + Sync {
   /// Connect the VPN tunnel
