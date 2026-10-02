@@ -72,11 +72,9 @@ interface CreateProfileDialogProps {
     wayfernConfig?: WayfernConfig;
     orbitaConfig?: WayfernConfig;
     cloakbrowserConfig?: CloakBrowserConfig;
-    groupId?: string;
     username?: string;
     password?: string;
   }) => Promise<void>;
-  selectedGroupId?: string;
 }
 
 interface BrowserOption {
@@ -111,7 +109,6 @@ export function CreateProfileDialog({
   isOpen,
   onClose,
   onCreateProfile,
-  selectedGroupId,
 }: CreateProfileDialogProps) {
   const { t } = useTranslation();
   const [profileName, setProfileName] = useState("");
@@ -390,8 +387,6 @@ export function CreateProfileDialog({
             releaseType: bestWayfernVersion.releaseType,
             proxyId: selectedProxyId,
             wayfernConfig: finalWayfernConfig,
-            groupId:
-              selectedGroupId !== "default" ? selectedGroupId : undefined,
             username: username.trim() || undefined,
             password: password.trim() || undefined,
           });
@@ -412,8 +407,6 @@ export function CreateProfileDialog({
             releaseType: bestOrbitaVersion.releaseType,
             proxyId: selectedProxyId,
             orbitaConfig: finalOrbitaConfig,
-            groupId:
-              selectedGroupId !== "default" ? selectedGroupId : undefined,
             username: username.trim() || undefined,
             password: password.trim() || undefined,
           });
@@ -433,8 +426,6 @@ export function CreateProfileDialog({
             releaseType: bestVersion.releaseType,
             proxyId: selectedProxyId,
             cloakbrowserConfig: finalCloakbrowserConfig,
-            groupId:
-              selectedGroupId !== "default" ? selectedGroupId : undefined,
             username: username.trim() || undefined,
             password: password.trim() || undefined,
           });
@@ -457,8 +448,6 @@ export function CreateProfileDialog({
             releaseType: bestCamoufoxVersion.releaseType,
             proxyId: selectedProxyId,
             camoufoxConfig: finalCamoufoxConfig,
-            groupId:
-              selectedGroupId !== "default" ? selectedGroupId : undefined,
             username: username.trim() || undefined,
             password: password.trim() || undefined,
           });
@@ -483,7 +472,6 @@ export function CreateProfileDialog({
           version: bestVersion.version,
           releaseType: bestVersion.releaseType,
           proxyId: selectedProxyId,
-          groupId: selectedGroupId !== "default" ? selectedGroupId : undefined,
           username: username.trim() || undefined,
           password: password.trim() || undefined,
         });
@@ -638,31 +626,6 @@ export function CreateProfileDialog({
                         </div>
 
                         <div className="space-y-3">
-                          {/* Camoufox (Firefox) */}
-                          <Button
-                            onClick={() => handleBrowserSelect("camoufox")}
-                            className="flex gap-3 justify-start items-center p-4 w-full h-16 border-2 transition-colors hover:border-primary/50"
-                            variant="outline"
-                          >
-                            <div className="flex justify-center items-center w-8 h-8">
-                              {(() => {
-                                const IconComponent =
-                                  getBrowserIcon("camoufox");
-                                return IconComponent ? (
-                                  <IconComponent className="w-6 h-6" />
-                                ) : null;
-                              })()}
-                            </div>
-                            <div className="text-left">
-                              <div className="font-medium">
-                                {t("createProfile.firefoxCamoufox")}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {t("createProfile.antiDetectBrowser")}
-                              </div>
-                            </div>
-                          </Button>
-
                           {/* Foxia Browser (CloakBrowser) */}
                           <Button
                             onClick={() => handleBrowserSelect("cloakbrowser")}

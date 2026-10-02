@@ -109,6 +109,10 @@ pub struct AppUpdateInfo {
   pub published_at: String,
   pub manual_update_required: bool,
   pub release_page_url: Option<String>,
+  #[serde(default)]
+  pub force_update: bool,
+  #[serde(default)]
+  pub min_supported_version: Option<String>,
 }
 
 pub struct AppAutoUpdater {
@@ -203,6 +207,18 @@ impl AppAutoUpdater {
     if self.should_update(&current_version, &latest_release.tag_name, is_nightly) {
       log::info!("Update available!");
 
+      let min_supported_version = if is_nightly {
+        None
+      } else {
+        Self::parse_min_supported_version(&latest_release.body)
+      };
+      let force_update = min_supported_version
+        .as_deref()
+        .is_some_and(|min_version| self.is_version_newer(min_version, &current_version));
+      log::info!(
+        "Minimum supported version: {min_supported_version:?}, force update: {force_update}"
+      );
+
       // Build the release page URL
       let release_page_url = format!(
         "https://github.com/nguyentienloc/fox-mkt/releases/tag/{}",
@@ -226,6 +242,8 @@ impl AppAutoUpdater {
           published_at: latest_release.published_at.clone(),
           manual_update_required,
           release_page_url: Some(release_page_url),
+          force_update,
+          min_supported_version,
         };
 
         log::info!(
@@ -249,6 +267,8 @@ impl AppAutoUpdater {
             published_at: latest_release.published_at.clone(),
             manual_update_required: false,
             release_page_url: Some(release_page_url),
+            force_update,
+            min_supported_version,
           };
 
           log::info!(
@@ -324,6 +344,26 @@ impl AppAutoUpdater {
     }
 
     false
+  }
+
+  /// Read a `min_supported_version: x.y.z` line from the release notes
+  fn parse_min_supported_version(release_body: &str) -> Option<String> {
+    const DECORATIONS: [char; 4] = ['`', '*', '-', ' '];
+    release_body.lines().find_map(|line| {
+      let (key, value) = line.split_once([':', '='])?;
+      let key = key.trim().trim_matches(DECORATIONS).trim();
+      if !key.eq_ignore_ascii_case("min_supported_version") {
+        return None;
+      }
+      let version = value
+        .trim()
+        .trim_matches(DECORATIONS)
+        .trim()
+        .trim_start_matches('v');
+      let parts: Vec<&str> = version.split('.').collect();
+      let is_semver = parts.len() == 3 && parts.iter().all(|part| part.parse::<u32>().is_ok());
+      is_semver.then(|| version.to_string())
+    })
   }
 
   /// Compare semantic versions (returns true if version1 > version2)
@@ -1574,6 +1614,26 @@ pub async fn check_for_app_updates_manual() -> Result<Option<AppUpdateInfo>, Str
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn test_parse_min_supported_version() {
+    assert_eq!(
+      AppAutoUpdater::parse_min_supported_version("Fixes\nmin_supported_version: 0.0.15\n"),
+      Some("0.0.15".to_string())
+    );
+    assert_eq!(
+      AppAutoUpdater::parse_min_supported_version("- **MIN_SUPPORTED_VERSION** = `v1.2.3`"),
+      Some("1.2.3".to_string())
+    );
+    assert_eq!(
+      AppAutoUpdater::parse_min_supported_version("min_supported_version: latest"),
+      None
+    );
+    assert_eq!(
+      AppAutoUpdater::parse_min_supported_version("No marker here"),
+      None
+    );
+  }
 
   #[test]
   fn test_is_nightly_build() {

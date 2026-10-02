@@ -486,5 +486,21 @@
   "auth": {
     "checking_status": "Checking authentication status...",
     "launching": "Launching..."
+  },
+  "browserMissing": {
+    "title": "Foxia Browser is not installed",
+    "description": "You need to download Foxia Browser before you can open profiles.",
+    "downloadNow": "Download now",
+    "downloading": "Downloading..."
+  },
+  "forceUpdate": {
+    "title": "Update required",
+    "description": "Version {{current}} is no longer supported. The app will update to {{version}} automatically.",
+    "installing": "Downloading and installing the update...",
+    "restarting": "Restarting the app...",
+    "failed": "Update failed",
+    "retry": "Retry",
+    "manual": "Please download and install the new version manually to keep using the app.",
+    "openReleasePage": "Open download page"
   }
 }

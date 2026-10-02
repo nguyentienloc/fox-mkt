@@ -458,5 +458,21 @@
     "zen": "Zen Browser",
     "camoufox": "Camoufox",
     "wayfern": "Wayfern"
+  },
+  "browserMissing": {
+    "title": "Foxia Browser не установлен",
+    "description": "Загрузите Foxia Browser, чтобы открывать профили.",
+    "downloadNow": "Скачать сейчас",
+    "downloading": "Загрузка..."
+  },
+  "forceUpdate": {
+    "title": "Требуется обновление",
+    "description": "Версия {{current}} больше не поддерживается. Приложение автоматически обновится до {{version}}.",
+    "installing": "Загрузка и установка обновления...",
+    "restarting": "Перезапуск приложения...",
+    "failed": "Не удалось обновить",
+    "retry": "Повторить",
+    "manual": "Скачайте и установите новую версию вручную, чтобы продолжить пользоваться приложением.",
+    "openReleasePage": "Открыть страницу загрузки"
   }
 }

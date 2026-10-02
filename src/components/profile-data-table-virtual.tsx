@@ -75,8 +75,6 @@ interface ProfilesDataTableProps {
   runningProfiles: Set<string>;
   isUpdating: (browser: string) => boolean;
   onDeleteSelectedProfiles: (profileIds: string[]) => Promise<void>;
-  onAssignProfilesToGroup: (profileIds: string[]) => void;
-  selectedGroupId: string | null;
   selectedProfiles: string[];
   onSelectedProfilesChange: Dispatch<SetStateAction<string[]>>;
   onOpenProfileSyncDialog?: (profile: BrowserProfile) => void;
@@ -131,7 +129,6 @@ interface TableMeta {
   onKillProfile: (profile: BrowserProfile) => void | Promise<void>;
   onLaunchProfile: (profile: BrowserProfile) => void | Promise<void>;
 
-  onAssignProfilesToGroup?: (profileIds: string[]) => void;
   onCloneProfile?: (profile: BrowserProfile) => void;
   onConfigureCamoufox?: (profile: BrowserProfile) => void;
   onCopyCookiesToProfile?: (profile: BrowserProfile) => void;
@@ -162,7 +159,6 @@ export function ProfilesDataTableVirtual({
   onCopyCookiesToProfile,
   runningProfiles,
   isUpdating,
-  onAssignProfilesToGroup,
   selectedProfiles,
   onSelectedProfilesChange,
   onUploadToOdoo,
@@ -700,7 +696,6 @@ export function ProfilesDataTableVirtual({
       setStoppingProfiles,
       onKillProfile: handleStopProfileAction,
       onLaunchProfile: handleLaunchProfileAction,
-      onAssignProfilesToGroup,
       onCloneProfile,
       onConfigureCamoufox,
       onCopyCookiesToProfile,
@@ -738,7 +733,6 @@ export function ProfilesDataTableVirtual({
       isRenamingSaving,
       handleStopProfileAction,
       handleLaunchProfileAction,
-      onAssignProfilesToGroup,
       onCloneProfile,
       onConfigureCamoufox,
       onCopyCookiesToProfile,
@@ -1203,17 +1197,6 @@ export function ProfilesDataTableVirtual({
                     }
                   >
                     Nhân bản
-                  </DropdownMenuItem>
-                )}
-                {!isCloudOnly && (
-                  <DropdownMenuItem
-                    onClick={() => meta.onAssignProfilesToGroup?.([profile.id])}
-                    disabled={
-                      meta.runningProfiles.has(profile.id) ||
-                      meta.uploadingProfiles.has(profile.id)
-                    }
-                  >
-                    Thêm vào nhóm
                   </DropdownMenuItem>
                 )}
                 {!isCloudOnly && (

@@ -8,7 +8,6 @@ import {
   LuRefreshCw,
   LuSearch,
   LuUser,
-  LuUsers,
   LuX,
 } from "react-icons/lu";
 import { useAuth } from "@/providers/auth-provider";
@@ -26,7 +25,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 type Props = {
   onSettingsDialogOpen: (open: boolean) => void;
   _onProxyManagementDialogOpen: (open: boolean) => void;
-  onGroupManagementDialogOpen: (open: boolean) => void;
   _onImportProfileDialogOpen: (open: boolean) => void;
   _onZsmktImportDialogOpen: (open: boolean) => void;
   onOdooImportDialogOpen: (open: boolean) => void;
@@ -42,7 +40,6 @@ type Props = {
 const HomeHeader = ({
   onSettingsDialogOpen,
   _onProxyManagementDialogOpen,
-  onGroupManagementDialogOpen,
   _onImportProfileDialogOpen,
   _onZsmktImportDialogOpen,
   onOdooImportDialogOpen,
@@ -189,14 +186,6 @@ const HomeHeader = ({
               {t("header.menu.proxies")}
             </DropdownMenuItem>
             */}
-            <DropdownMenuItem
-              onClick={() => {
-                onGroupManagementDialogOpen(true);
-              }}
-            >
-              <LuUsers className="mr-2 w-4 h-4" />
-              {t("header.menu.groups")}
-            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
                 onBrowserManagementDialogOpen(true);

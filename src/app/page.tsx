@@ -12,9 +12,7 @@ import { BrowserManagementDialog } from "@/components/browser-management-dialog"
 import { CamoufoxConfigDialog } from "@/components/camoufox-config-dialog";
 import { CreateProfileDialog } from "@/components/create-profile-dialog";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
-import { GroupAssignmentDialog } from "@/components/group-assignment-dialog";
-import { GroupBadges } from "@/components/group-badges";
-import { GroupManagementDialog } from "@/components/group-management-dialog";
+import { FoxiaBrowserMissingAlert } from "@/components/foxia-browser-missing-alert";
 import HomeHeader from "@/components/home-header";
 import { OdooImportDialog } from "@/components/odoo-import-dialog";
 import { ProfilesDataTableVirtual } from "@/components/profile-data-table-virtual";
@@ -23,7 +21,6 @@ import { ProxyManagementDialog } from "@/components/proxy-management-dialog";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { ZsMktImportDialog } from "@/components/zsmkt-import-dialog";
 import { useBrowserDownload } from "@/hooks/use-browser-download";
-import { useGroupEvents } from "@/hooks/use-group-events";
 import type { PermissionType } from "@/hooks/use-permissions";
 import { useProfileEvents } from "@/hooks/use-profile-events";
 import { useProxyEvents } from "@/hooks/use-proxy-events";
@@ -150,13 +147,8 @@ export default function Home() {
   useEffect(() => {
     void handleCheckAppUpdate(false);
   }, [handleCheckAppUpdate]);
-  const {
-    profiles,
-    runningProfiles,
-    isLoading: profilesLoading,
-  } = useProfileEvents();
-  const { groups: groupsData, isLoading: groupsLoading } = useGroupEvents();
-  const { isLoading: proxiesLoading } = useProxyEvents();
+  const { profiles, runningProfiles } = useProfileEvents();
+  useProxyEvents();
   const {
     downloadBrowser,
     loadDownloadedVersions,
@@ -218,8 +210,6 @@ export default function Home() {
       }
     };
 
-    void checkAndDownload("orbita");
-    void checkAndDownload("camoufox");
     void checkAndDownload("cloakbrowser");
     void checkAndDownloadGeoIP();
   }, [
@@ -445,7 +435,6 @@ export default function Home() {
     return [...odooMerged, ...localOnly];
   }, [profiles, odooProfiles]);
 
-  const [selectedGroupId, setSelectedGroupId] = useState("default");
   const [browserFilter, setBrowserFilter] = useState<BrowserFilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProfiles, setSelectedProfiles] = useState<string[]>([]);
@@ -460,20 +449,13 @@ export default function Home() {
     useState(false);
   const [camoufoxConfigDialogOpen, setCamoufoxConfigDialogOpen] =
     useState(false);
-  const [groupManagementDialogOpen, setGroupManagementDialogOpen] =
-    useState(false);
   const [browserManagementDialogOpen, setBrowserManagementDialogOpen] =
-    useState(false);
-  const [groupAssignmentDialogOpen, setGroupAssignmentDialogOpen] =
     useState(false);
   const [_proxyAssignmentDialogOpen, _setProxyAssignmentDialogOpen] =
     useState(false);
   const [_cookieCopyDialogOpen, _setCookieCopyDialogOpen] = useState(false);
   const [_selectedProfilesForCookies, _setSelectedProfilesForCookies] =
     useState<string[]>([]);
-  const [selectedProfilesForGroup, setSelectedProfilesForGroup] = useState<
-    string[]
-  >([]);
   const [_selectedProfilesForProxy, _setSelectedProfilesForProxy] = useState<
     string[]
   >([]);
@@ -521,9 +503,6 @@ export default function Home() {
 
   const filteredProfiles = useMemo(() => {
     let f = mergedProfiles;
-    if (!selectedGroupId || selectedGroupId === "default")
-      f = f.filter((p: any) => !p.group_id);
-    else f = f.filter((p: any) => p.group_id === selectedGroupId);
 
     // Browser filter
     if (browserFilter === "cloud") {
@@ -549,7 +528,7 @@ export default function Home() {
       );
     }
     return f;
-  }, [mergedProfiles, selectedGroupId, searchQuery, browserFilter]);
+  }, [mergedProfiles, searchQuery, browserFilter]);
 
   const sortedProfiles = useMemo(() => {
     return [...filteredProfiles].sort((a, b) => {
@@ -561,12 +540,7 @@ export default function Home() {
   }, [filteredProfiles]);
 
   const handleCreateProfile = async (d: any) => {
-    await invoke("create_browser_profile_new", {
-      ...d,
-      groupId:
-        d.groupId ||
-        (selectedGroupId !== "default" ? selectedGroupId : undefined),
-    });
+    await invoke("create_browser_profile_new", d);
   };
 
   const launchProfile = async (profile: BrowserProfile) => {
@@ -581,15 +555,22 @@ export default function Home() {
         errorStr.includes("No such file or directory") ||
         errorStr.includes("Executable file not found")
       ) {
+        let browserName = profile.browser || "";
+        if (profile.browser === "cloakbrowser") {
+          browserName = "Foxia Browser";
+        }
         showToast({
           type: "error",
-          title: `Trình duyệt ${profile.browser} chưa được tải hoặc bị lỗi`,
+          title: `Trình duyệt ${browserName} chưa được tải hoặc bị lỗi`,
           description: "Vui lòng tải lại trình duyệt để tiếp tục.",
-          action: {
-            label: "Tải ngay",
-            onClick: () =>
-              void downloadBrowser(profile.browser, profile.version),
-          },
+          action:
+            profile.browser === "cloakbrowser"
+              ? {
+                  label: "Tải ngay",
+                  onClick: () =>
+                    void downloadBrowser(profile.browser, profile.version),
+                }
+              : undefined,
         });
       } else showErrorToast(`Lỗi: ${err}`);
       throw err;
@@ -945,13 +926,10 @@ export default function Home() {
     }
   };
 
-  const isLoading = profilesLoading || groupsLoading || proxiesLoading;
-
   return (
     <div className="grid items-center justify-items-center min-h-screen bg-background">
       <main className="flex flex-col items-center w-full max-w-[1300px] h-screen px-4 py-4">
         <HomeHeader
-          onGroupManagementDialogOpen={setGroupManagementDialogOpen}
           onBrowserManagementDialogOpen={setBrowserManagementDialogOpen}
           _onImportProfileDialogOpen={setImportProfileDialogOpen}
           _onZsmktImportDialogOpen={setZsmktImportDialogOpen}
@@ -966,12 +944,7 @@ export default function Home() {
           onSearchQueryChange={setSearchQuery}
         />
         <div className="w-full mt-2.5 flex-1 flex flex-col min-h-0">
-          <GroupBadges
-            selectedGroupId={selectedGroupId}
-            onGroupSelect={setSelectedGroupId}
-            groups={groupsData}
-            isLoading={isLoading}
-          />
+          <FoxiaBrowserMissingAlert />
           <BrowserFilter
             selectedFilter={browserFilter}
             onFilterSelect={setBrowserFilter}
@@ -1066,11 +1039,6 @@ export default function Home() {
                   await loadOdooProfiles();
                 }
               }}
-              onAssignProfilesToGroup={(ids) => {
-                setSelectedProfilesForGroup(ids);
-                setGroupAssignmentDialogOpen(true);
-              }}
-              selectedGroupId={selectedGroupId}
               selectedProfiles={selectedProfiles}
               onSelectedProfilesChange={setSelectedProfiles}
               onUploadToOdoo={handleUploadToOdoo}
@@ -1087,7 +1055,6 @@ export default function Home() {
         isOpen={createProfileDialogOpen}
         onClose={() => setCreateProfileDialogOpen(false)}
         onCreateProfile={handleCreateProfile}
-        selectedGroupId={selectedGroupId}
       />
       <SettingsDialog
         isOpen={settingsDialogOpen}
@@ -1101,13 +1068,6 @@ export default function Home() {
       <ZsMktImportDialog
         isOpen={zsmktImportDialogOpen}
         onClose={() => setZsmktImportDialogOpen(false)}
-      />
-      <GroupAssignmentDialog
-        isOpen={groupAssignmentDialogOpen}
-        onClose={() => setGroupAssignmentDialogOpen(false)}
-        selectedProfiles={selectedProfilesForGroup}
-        onAssignmentComplete={() => setGroupAssignmentDialogOpen(false)}
-        profiles={profiles}
       />
       <DeleteConfirmationDialog
         isOpen={showBulkDeleteConfirmation}
@@ -1134,11 +1094,6 @@ export default function Home() {
         profile={currentProfileForCamoufoxConfig}
         onSave={handleSaveCamoufoxConfig}
         isRunning={false}
-      />
-      <GroupManagementDialog
-        isOpen={groupManagementDialogOpen}
-        onClose={() => setGroupManagementDialogOpen(false)}
-        onGroupManagementComplete={() => {}}
       />
       <ProxyManagementDialog
         isOpen={proxyManagementDialogOpen}

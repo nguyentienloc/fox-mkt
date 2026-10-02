@@ -1,10 +1,14 @@
 "use client";
 
 import { invoke } from "@tauri-apps/api/core";
+import { emit } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuDownload, LuRefreshCw, LuTrash2 } from "react-icons/lu";
-import { useBrowserDownload } from "@/hooks/use-browser-download";
+import {
+  BROWSER_DELETED_EVENT,
+  useBrowserDownload,
+} from "@/hooks/use-browser-download";
 import { getBrowserDisplayName, getBrowserIcon } from "@/lib/browser-utils";
 import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
 import { Badge } from "./ui/badge";
@@ -29,7 +33,7 @@ import {
 } from "./ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
-const MANAGED_BROWSERS = ["orbita", "camoufox", "cloakbrowser"] as const;
+const MANAGED_BROWSERS = ["cloakbrowser"] as const;
 const GEOIP_KEY = "geoip";
 
 interface BrowserManagementDialogProps {
@@ -114,6 +118,7 @@ export function BrowserManagementDialog({
       setBusy((prev) => ({ ...prev, [browser]: true }));
       try {
         await invoke("delete_browser", { browserStr: browser });
+        void emit(BROWSER_DELETED_EVENT, { browser });
         showSuccessToast(t("browserManagement.deleteSuccess", { name }));
         await refresh();
       } catch (error) {
@@ -132,6 +137,7 @@ export function BrowserManagementDialog({
       setBusy((prev) => ({ ...prev, [browser]: true }));
       try {
         await invoke("delete_browser", { browserStr: browser });
+        void emit(BROWSER_DELETED_EVENT, { browser });
       } catch {
         // ignore delete error, proceed to re-download
       } finally {

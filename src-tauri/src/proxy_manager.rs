@@ -742,10 +742,9 @@ impl ProxyManager {
       ("socks4", rest)
     } else if let Some(rest) = line.strip_prefix("socks5://") {
       ("socks5", rest)
-    } else if let Some(rest) = line.strip_prefix("socks://") {
-      ("socks5", rest) // Default socks to socks5
     } else {
-      return None;
+      let rest = line.strip_prefix("socks://")?;
+      ("socks5", rest) // Default socks to socks5
     };
 
     // Check if there's auth (contains @)
@@ -809,13 +808,12 @@ impl ProxyManager {
       let host_port = &line[at_pos + 1..];
 
       // Parse auth
-      let (username, password) = if let Some(colon_pos) = auth.find(':') {
+      let (username, password) = {
+        let colon_pos = auth.find(':')?;
         (
           Some(auth[..colon_pos].to_string()),
           Some(auth[colon_pos + 1..].to_string()),
         )
-      } else {
-        return None;
       };
 
       // Parse host:port

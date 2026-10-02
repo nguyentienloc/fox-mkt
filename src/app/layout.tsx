@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "@/styles/globals.css";
 import "flag-icons/css/flag-icons.min.css";
 import { useEffect } from "react";
+import { ForceUpdateGate } from "@/components/force-update-gate";
 import { I18nProvider } from "@/components/i18n-provider";
 import { CustomThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -41,6 +42,7 @@ export default function RootLayout({
               <WindowDragArea />
               <TooltipProvider>{children}</TooltipProvider>
               <Toaster />
+              <ForceUpdateGate />
             </AuthProvider>
           </CustomThemeProvider>
         </I18nProvider>

@@ -498,5 +498,21 @@
     "error": {
       "browserNotDownloaded": "Trình duyệt {{browser}} chưa được tải. Đang tiến hành tải xuống. Vui lòng đợi và thử lại sau khi quá trình tải hoàn tất."
     }
+  },
+  "browserMissing": {
+    "title": "Chưa cài đặt trình duyệt Foxia Browser",
+    "description": "Bạn cần tải Foxia Browser để có thể mở các profile.",
+    "downloadNow": "Tải ngay",
+    "downloading": "Đang tải..."
+  },
+  "forceUpdate": {
+    "title": "Bắt buộc cập nhật ứng dụng",
+    "description": "Phiên bản {{current}} không còn được hỗ trợ. Ứng dụng sẽ tự động cập nhật lên {{version}}.",
+    "installing": "Đang tải và cài đặt bản cập nhật...",
+    "restarting": "Đang khởi động lại ứng dụng...",
+    "failed": "Cập nhật thất bại",
+    "retry": "Thử lại",
+    "manual": "Hãy tải và cài đặt bản mới thủ công để tiếp tục sử dụng ứng dụng.",
+    "openReleasePage": "Mở trang tải xuống"
   }
 }

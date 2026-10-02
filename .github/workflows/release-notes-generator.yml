@@ -139,6 +139,12 @@ jobs:
             RELEASE_NOTES="$RESPONSE_OUTPUT"
           fi
 
+          # Keep the force-update marker written by `make force-update`
+          MIN_VERSION_LINE=$(gh api /repos/${{ github.repository }}/releases/"$RELEASE_ID" --jq '.body' | tr -d '\r' | grep -iE '^[[:space:]`*-]*min_supported_version[[:space:]`*]*[:=]' | head -n 1 || true)
+          if [ -n "$MIN_VERSION_LINE" ]; then
+            RELEASE_NOTES="$RELEASE_NOTES"$'\n\n'"$MIN_VERSION_LINE"
+          fi
+
           # Update the release with the generated notes
           gh api --method PATCH /repos/${{ github.repository }}/releases/"$RELEASE_ID" \
             --field body="$RELEASE_NOTES"

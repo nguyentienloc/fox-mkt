@@ -458,5 +458,21 @@
     "zen": "Zen Browser",
     "camoufox": "Camoufox",
     "wayfern": "Wayfern"
+  },
+  "browserMissing": {
+    "title": "Foxia Browser n'est pas installé",
+    "description": "Vous devez télécharger Foxia Browser pour pouvoir ouvrir des profils.",
+    "downloadNow": "Télécharger maintenant",
+    "downloading": "Téléchargement..."
+  },
+  "forceUpdate": {
+    "title": "Mise à jour obligatoire",
+    "description": "La version {{current}} n'est plus prise en charge. L'application va se mettre à jour automatiquement vers {{version}}.",
+    "installing": "Téléchargement et installation de la mise à jour...",
+    "restarting": "Redémarrage de l'application...",
+    "failed": "Échec de la mise à jour",
+    "retry": "Réessayer",
+    "manual": "Veuillez télécharger et installer la nouvelle version manuellement pour continuer à utiliser l'application.",
+    "openReleasePage": "Ouvrir la page de téléchargement"
   }
 }

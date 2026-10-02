@@ -458,5 +458,21 @@
     "zen": "Zen Browser",
     "camoufox": "Camoufox",
     "wayfern": "Wayfern"
+  },
+  "browserMissing": {
+    "title": "尚未安装 Foxia Browser",
+    "description": "您需要下载 Foxia Browser 才能打开配置文件。",
+    "downloadNow": "立即下载",
+    "downloading": "正在下载..."
+  },
+  "forceUpdate": {
+    "title": "需要更新",
+    "description": "版本 {{current}} 已不再受支持。应用将自动更新到 {{version}}。",
+    "installing": "正在下载并安装更新...",
+    "restarting": "正在重启应用...",
+    "failed": "更新失败",
+    "retry": "重试",
+    "manual": "请手动下载并安装新版本以继续使用应用。",
+    "openReleasePage": "打开下载页面"
   }
 }

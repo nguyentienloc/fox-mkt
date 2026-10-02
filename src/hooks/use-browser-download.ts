@@ -11,6 +11,8 @@ import {
   showToast,
 } from "@/lib/toast-utils";
 
+export const BROWSER_DELETED_EVENT = "browser-deleted";
+
 interface GithubRelease {
   tag_name: string;
   assets: {

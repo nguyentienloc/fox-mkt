@@ -458,5 +458,21 @@
     "zen": "Zen Browser",
     "camoufox": "Camoufox",
     "wayfern": "Wayfern"
+  },
+  "browserMissing": {
+    "title": "Foxia Browser がインストールされていません",
+    "description": "プロファイルを開くには Foxia Browser をダウンロードしてください。",
+    "downloadNow": "今すぐダウンロード",
+    "downloading": "ダウンロード中..."
+  },
+  "forceUpdate": {
+    "title": "アップデートが必要です",
+    "description": "バージョン {{current}} はサポートされなくなりました。アプリは自動的に {{version}} にアップデートされます。",
+    "installing": "アップデートをダウンロードしてインストールしています...",
+    "restarting": "アプリを再起動しています...",
+    "failed": "アップデートに失敗しました",
+    "retry": "再試行",
+    "manual": "アプリを引き続き使用するには、新しいバージョンを手動でダウンロードしてインストールしてください。",
+    "openReleasePage": "ダウンロードページを開く"
   }
 }

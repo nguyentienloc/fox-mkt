@@ -49,11 +49,11 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      console.log("Attempting Odoo login to:", baseUrl);
+      console.log("Attempting CRM login to:", baseUrl);
       localStorage.setItem("API_BASE_URL", baseUrl);
       const result = await login(baseUrl, username, password);
 
-      console.log("Odoo Login Result:", result);
+      console.log("CRM Login Result:", result);
 
       // Store session_id if returned in result
       if (result?.session_id) {
@@ -97,20 +97,20 @@ export default function LoginPage() {
               Chào mừng trở lại
             </CardTitle>
             <CardDescription>
-              Đăng nhập tài khoản Odoo để tiếp tục
+              Đăng nhập tài khoản CRM để tiếp tục
             </CardDescription>
           </div>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="baseUrl">Địa chỉ Odoo Server</Label>
+              <Label htmlFor="baseUrl">Địa chỉ CRM Server</Label>
               <Input
                 id="baseUrl"
                 type="url"
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
-                placeholder="https://odoo.yourdomain.com"
+                placeholder="https://crm.yourdomain.com"
                 required
               />
             </div>
