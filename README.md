@@ -83,10 +83,10 @@ Have questions or want to contribute? We'd love to hear from you!
                 </a>
             </td>
             <td align="center">
-                <a href="https://github.com/HassiyYT">
-                    <img src="https://avatars.githubusercontent.com/u/81773493?v=4" width="100;" alt="HassiyYT"/>
+                <a href="https://github.com/kalinichaa">
+                    <img src="https://avatars.githubusercontent.com/u/81773493?v=4" width="100;" alt="kalinichaa"/>
                     <br />
-                    <sub><b>Hassiy</b></sub>
+                    <sub><b>Alexander Kalinich</b></sub>
                 </a>
             </td>
             <td align="center">
